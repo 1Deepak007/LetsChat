@@ -11,35 +11,38 @@ const socket = io('http://localhost:5000', {
 const Home = ({ token, setToken }) => {
     const [message, setMessage] = useState('');
     const [messages, setMessages] = useState([]);
-    const [userId, setUserId] = useState('');
+    const [friends, setfriends] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
+
 
     useEffect(() => {
+        const decoded = jwtDecode(token);
+
+
+        const fetchFriends = async () => {
+            setIsLoading(true);
+            try {
+                const response = await axios.get(`http://localhost:5000/api/friends/get-friends/${decoded.id}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                setfriends(response.data); // Assuming the API directly returns the array of friends
+            } catch (error) {
+                console.error('Error fetching friends:', error);
+                setError(error.message || 'An error occurred while fetching friends.');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
         if (token) {
-            const decoded = jwtDecode(token);
-            setUserId(decoded.userId);
-            socket.emit('join', decoded.userId);
-
-            // axios.get(`http://localhost:5000/api/chat/messages?sender=${decoded.userId}&receiver=otherUserId`, {
-            //     headers: { Authorization: `Bearer ${token}` }
-            // })
-            // .then((res) => setMessages(res.data))
-            // .catch(err => console.error("Error fetching messages:", err));
-
-            axios.get(`http://localhost:5000/api/chat/messages`)
+            fetchFriends();
         }
-    }, [token]);
 
-    const sendMessage = async () => {
-        const newMessage = { sender: userId, receiver: 'otherUserId', content: message };
-        socket.emit('send_message', newMessage);
-
-        await axios.post('http://localhost:5000/api/chat/sendmessage', newMessage, {
-            headers: { Authorization: `Bearer ${token}` }
+        socket.on('receive_message', (msg) => {
+            setMessages(prevMessages => [...prevMessages, msg]);
         });
-
-        setMessages([...messages, newMessage]);
-        setMessage('');
-    };
+    }, [token]); // Dependency array includes token for refetching on token change
 
     const logout = () => {
         localStorage.removeItem('token');
@@ -47,16 +50,28 @@ const Home = ({ token, setToken }) => {
     };
 
     return (
-        <div>
-            <h1>Welcome to the Chat</h1>
+        <div >
+            <h1 >Welcome to the LetsChat</h1>
             <button onClick={logout}>Logout</button>
             <input value={message} onChange={(e) => setMessage(e.target.value)} />
-            <button onClick={sendMessage}>Send</button>
+            <button onClick='' className='btn btn-primary'>Send message</button>
+
+            {isLoading && <p>Loading friends...</p>}
+            {error && <p style={{ color: 'red' }}>{error}</p>}
+
             <div>
                 {messages.map((msg, idx) => (
                     <div key={idx}>{msg.content}</div>
                 ))}
             </div>
+            <ul>
+                {
+                    friends &&
+                    friends.map((friend) => (
+                        <li key={friend._id}>{friend.username}</li>
+                    ))
+                }
+            </ul>
         </div>
     );
 };

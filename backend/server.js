@@ -2,14 +2,16 @@ const express = require('express');
 const mongoose = require('mongoose');
 const socketIo = require('socket.io');
 const http = require('http');
-const authRoutes = require('./routes/authRoutes');
-const chatRoutes = require('./routes/chatRoutes');
-const redisClient = require('./utils/redis');
 const dotenv = require('dotenv');
-const User = require('./models/User');
-const authenticateJWT = require('./middleware/authMiddleware');
-const cors = require('cors')
-const friendRoutes = require('./routes/friendRoutes');
+const cors = require('cors');
+
+const authRoutes = require('./routes/authRoutes')
+const friendRoutes = require('./routes/friendRoutes')
+const profileRoutes = require('./routes/profileRoutes')
+const redisClient = require('./utils/redis')
+const User = require('./models/User')
+const authenticateJWT = require('./middleware/authMiddleware')
+
 
 dotenv.config();
 
@@ -23,56 +25,67 @@ const io = socketIo(server, {
     allowedHeaders: ['Content-Type', 'Authorization']
   }
 });
+// Pass io to chatRoutes
+const chatRoutes = require('./routes/chatRoutes')(io);
+
 
 app.use(express.json());
-app.use(cors())
-app.use('/api/auth', authRoutes);
-app.use('/api/chat', authenticateJWT, chatRoutes);
+app.use(cors());
+
+app.use('/api/auth', authRoutes)
+app.use('/api/chat', authenticateJWT, chatRoutes)
 app.use('/api/friends', authenticateJWT, friendRoutes)
+app.use('/api/profile', authenticateJWT, profileRoutes)
 
 app.get('/', (req, res) => {
-  res.send('Server is running 🚀')
-})
+  res.send('Server is running 🚀');
+});
 
 app.get('/getallusers', async (req, res) => {
   try {
     const users = await User.find({});
     res.status(200).json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error retrieving users' });
   }
-  catch (err) {
-    console.error(err)
-    res.status(500).json({ message: 'Error retrieving users' })
-  }
-})
+});
 
+// database connection
 mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.log(err));
 
-let connectedUsers = {};
+/**
+ * ✅ Socket.IO Connection Handling
+ * - Users join a room with their userId (better than storing socketId manually)
+ * - Broadcast message only to relevant users
+ * - Handle disconnections properly
+ */
 
 io.on('connection', (socket) => {
-  console.log('a user connected:', socket.id);
+  console.log('A user connected:', socket.id);
 
+  // User joins their personal room
   socket.on('join', (userId) => {
-    connectedUsers[userId] = socket.id;
+    socket.join(userId);
+    console.log(`User ${userId} joined room`);
   });
 
-  socket.on('send_message', (data) => {
-    const { receiver, message } = data;
-    const receiverSocketId = connectedUsers[receiver];
+  // Handle real-time messaging
+  socket.on('send_message', ({ sender, receiver, message }) => {
+    console.log(`Message from ${sender} to ${receiver}: ${message}`);
 
-    if (receiverSocketId) {
-      io.to(receiverSocketId).emit('receive_message', message);
-    }
+    // Emit to the receiver's room
+    io.to(receiver).emit('receive_message', { sender, message });
+
+    // Save message in DB (handled in chatController)
   });
 
   socket.on('disconnect', () => {
-    console.log('a user disconnected');
+    console.log('A user disconnected:', socket.id);
   });
 });
-
-
 
 server.listen(5000, () => {
   console.log('Server running on port 5000');

@@ -17,7 +17,7 @@ exports.sendRequest = async (req, res) => {
 
         res.json({ message: 'Friend request sent' });
     } catch (err) {
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: 'Server error : ', err });
     }
 }
 
@@ -49,7 +49,7 @@ exports.acceptRequest = async (req, res) => {
 
         res.json({ message: 'Friend request accepted' });
     } catch (err) {
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: 'Server error : ', err });
     }
 }
 
@@ -57,8 +57,16 @@ exports.getFriends = async (req, res) => {
     const { userId } = req.params;
     try {
         const user = await User.findById(userId).populate('friends', 'username');
-        res.json(user.friends);
+        if (!user) {
+            return res.status(404).json({ message: "Can't find your profile" });
+        }
+        const friends = user.friends;
+        if (friends.length === 0) {
+            res.json({ message: "Sorry! You don't have any friends yet. Make some friends!" });
+        } else {
+            res.json(friends);
+        }
     } catch (err) {
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: `Server error : ${err}` });
     }
 }

@@ -1,3 +1,4 @@
+backend
 npm init -y
 npm install express mongoose jsonwebtoken bcryptjs redis socket.io dotenv
 
