@@ -4,6 +4,7 @@ const socketIo = require('socket.io');
 const http = require('http');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 
 const authRoutes = require('./routes/authRoutes')
 const friendRoutes = require('./routes/friendRoutes')
@@ -29,8 +30,9 @@ const io = socketIo(server, {
 const chatRoutes = require('./routes/chatRoutes')(io);
 
 
-app.use(express.json());
 app.use(cors());
+app.use(express.json());
+app.use(cookieParser());
 
 app.use('/api/auth', authRoutes)
 app.use('/api/chat', authenticateJWT, chatRoutes)
