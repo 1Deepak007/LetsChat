@@ -78,8 +78,9 @@ io.on('connection', (socket) => {
   socket.on('send_message', ({ sender, receiver, message }) => {
     console.log(`Message from ${sender} to ${receiver}: ${message}`);
 
-    // Emit to the receiver's room
-    io.to(receiver).emit('receive_message', { sender, message });
+    // Emit to both sender and receiver's rooms
+    io.to(sender).emit('newMessage', { sender, receiver, message });
+    io.to(receiver).emit('newMessage', { sender, receiver, message });
 
     // Save message in DB (handled in chatController)
   });

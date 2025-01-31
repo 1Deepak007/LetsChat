@@ -2,8 +2,7 @@ const jwt = require('jsonwebtoken');
 const redisClient = require('../utils/redis');
 
 const authenticate = async (req, res, next) => {
-    // const token = req.header('Authorization')?.split(' ')[1];
-    const token = req.cookies.token;  // Get token from cookies
+    const token = req.header('Authorization')?.split(' ')[1];
     if (!token) return res.status(401).json({ message: 'Access denied. No token provided' });
 
     try {

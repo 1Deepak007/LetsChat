@@ -4,7 +4,7 @@ import io from 'socket.io-client';
 import { jwtDecode } from 'jwt-decode';
 
 const socket = io('http://localhost:5000', {
-    transports: ['websocket', 'pooling'],
+    transports: ['websocket', 'poling'],
     withCredentials: true
 });
 
@@ -34,6 +34,8 @@ const Home = ({ token, setToken }) => {
         }
 
         try {
+            console.log(token)
+            console.log(userId)
             const response = await axios.get(`http://localhost:5000/api/profile/${userId}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -48,7 +50,12 @@ const Home = ({ token, setToken }) => {
         setIsLoading(true);
         try {
             const response = await axios.get(`http://localhost:5000/api/friends/get-friends/${userId}`, {
+                // const response = await axios.get(`http://localhost:5000/api/chat/messages`, {
                 headers: { Authorization: `Bearer ${token}` },
+                params: {
+                    sender: userId,
+                    receiver: selectedFrndId
+                }
             });
             setFriends(response.data);
         } catch (error) {
@@ -56,6 +63,53 @@ const Home = ({ token, setToken }) => {
             setError(`Unable to get friends. ${error.message}.`);
         } finally {
             setIsLoading(false);
+        }
+    };
+    console.log("Friends : ", friends)
+
+
+    const fetchMessages = async (token, userId, selectedFrndId) => {
+        setIsLoading(true);
+        try {
+            const response = await axios.get(`http://localhost:5000/api/chat/messages`, {
+                headers: { Authorization: `Bearer ${token}` },
+                params: {
+                    sender: userId,
+                    receiver: selectedFrndId
+                }
+            });
+            setMessages(response.data);
+        } catch (error) {
+            console.error(`Error fetching messages: ${error.message}.`);
+            setError(`Unable to get messages: ${error.message}.`);
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    const sendMessage = async () => {
+        if (!message.trim() || !selectedFrndId) return;
+
+        const newMessage = {
+            content: message,
+            sender: currentUserId,
+            receiver: selectedFrndId,
+            timestamp: new Date().toISOString()
+        };
+
+        try {
+            await axios.post('http://localhost:5000/api/chat/sendmessage', newMessage, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            // Optimistically update UI
+            setMessages(prev => [...prev, newMessage]);
+            setMessage("");
+
+            // Emit via socket.io
+            socket.emit("send_message", newMessage);
+        } catch (error) {
+            console.error("Error sending message:", error);
         }
     };
 
@@ -82,6 +136,8 @@ const Home = ({ token, setToken }) => {
         };
     }, [token]);
 
+
+
     const logout = () => {
         localStorage.removeItem("token");
         setToken("");
@@ -92,8 +148,16 @@ const Home = ({ token, setToken }) => {
     };
 
     useEffect(() => {
-        console.log("Selected friend:", selectedFrndId);
+        if (!selectedFrndId) {
+            return;
+        } else {
+            fetchMessages(token, currentUserId, selectedFrndId);
+        }
+        console.log("Friends : ", friends)
+        console.log("Selected friend : ", selectedFrndId);
+        console.log("Messages : ", messages)
     }, [selectedFrndId]);
+
 
 
     return (
@@ -120,15 +184,48 @@ const Home = ({ token, setToken }) => {
                         ))}
                     </select>
 
-                    {messages.map((msg, idx) => (
+                    {/* {messages.map((msg, idx) => (
                         <div key={idx}>{msg.content}</div>
-                    ))}
+                    ))} */}
+
+                    <div className='row'>
+                        {/* Messages Container */}
+                        <div className="flex flex-col gap-2 h-96 overflow-y-auto mb-4 p-2 border rounded">
+                            {messages.map((msg, idx) => (
+                                <div
+                                    key={idx}
+                                    className={`max-w-[70%] p-2 rounded-lg break-words ${msg.sender === currentUserId
+                                        ? 'ml-auto bg-blue-500 text-white'  // Current user's messages
+                                        : 'mr-auto bg-gray-200 text-black'  // Friend's messages
+                                        }`}
+                                >
+                                    {msg.content}
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Message Input */}
+                        <div className='flex gap-2'>
+                            <textarea
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                className='flex-1 mt-1 border p-2 rounded-xl'
+                                rows="1"
+                            />
+                            <button
+                                onClick={sendMessage}
+                                className='self-start px-4 py-2 mt-1 bg-black text-white rounded-md hover:bg-gray-800'
+                            >
+                                Send
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
-                <div className='row'>
+                {/* <div className='row'>
                     <textarea value={message} onChange={(e) => setMessage(e.target.value)} className='border border p-1 me-2 rounded-xl' rows="4" cols="50"></textarea>
                     <button onClick='' className='rounded-md p-1 mt-3 bg-black text-white'>Send message</button>
-                </div>
+                </div> */}
             </div>
         </div >
     );
