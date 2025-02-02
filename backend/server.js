@@ -5,39 +5,26 @@ const http = require('http');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const jwt = require('jsonwebtoken')
 
 const authRoutes = require('./routes/authRoutes')
 const friendRoutes = require('./routes/friendRoutes')
 const profileRoutes = require('./routes/profileRoutes')
 const redisClient = require('./utils/redis')
 const User = require('./models/User')
+const Message = require('./models/Message');
 const authenticateJWT = require('./middleware/authMiddleware')
-
 
 dotenv.config();
 
 const app = express();
 const server = http.createServer(app);
-const io = socketIo(server, {
-  cors: {
-    origin: 'http://localhost:3000/',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization']
-  }
-});
-// Pass io to chatRoutes
-const chatRoutes = require('./routes/chatRoutes')(io);
-
 
 app.use(cors());
 app.use(express.json());
 app.use(cookieParser());
 
-app.use('/api/auth', authRoutes)
-app.use('/api/chat', authenticateJWT, chatRoutes)
-app.use('/api/friends', authenticateJWT, friendRoutes)
-app.use('/api/profile', authenticateJWT, profileRoutes)
+
 
 app.get('/', (req, res) => {
   res.send('Server is running 🚀');
@@ -58,29 +45,61 @@ mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopol
   .then(() => console.log('MongoDB connected'))
   .catch(err => console.log(err));
 
-/**
- * ✅ Socket.IO Connection Handling
- * - Users join a room with their userId (better than storing socketId manually)
- * - Broadcast message only to relevant users
- * - Handle disconnections properly
- */
+
+
+const io = socketIo(server, {
+  cors: {
+    origin: 'http://localhost:3000',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
+  }
+});
+
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  if (!token) return next(new Error('Authentication error'))
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.id;
+    socket.join(socket.userId);
+    console.log(`User ${socket.userId} joined room`);
+    next()
+  }
+  catch (err) {
+    console.error('Error in socket authentication:', err);
+    return next(new Error('Authentication error'));
+  }
+})
+
+
 
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
   // User joins their personal room
-  socket.on('join', (userId) => {
-    socket.join(userId);
-    console.log(`User ${userId} joined room`);
-  });
+  // socket.on('join', (userId) => {
+
+  // });
 
   // Handle real-time messaging
-  socket.on('send_message', ({ sender, receiver, message }) => {
+  socket.on('send_message', async ({ sender, receiver, message }) => {
     console.log(`Message from ${sender} to ${receiver}: ${message}`);
 
-    // Emit to both sender and receiver's rooms
-    io.to(sender).emit('newMessage', { sender, receiver, message });
-    io.to(receiver).emit('newMessage', { sender, receiver, message });
+    try {
+      // Save to database
+      const savedMessage = await Message.create({
+        sender, receiver, content: message
+      });
+
+      // Emit to both participants
+      socket.to(receiver.toString()).emit('newMessage', savedMessage);
+      socket.to(sender.toString()).emit('newMessage', savedMessage);
+
+    } catch (err) {
+      console.error('Message error:', err);
+    }
 
     // Save message in DB (handled in chatController)
   });
@@ -89,6 +108,15 @@ io.on('connection', (socket) => {
     console.log('A user disconnected:', socket.id);
   });
 });
+// Pass io to chatRoutes
+const chatRoutes = require('./routes/chatRoutes')(io);
+
+app.use('/api/auth', authRoutes)
+app.use('/api/chat', authenticateJWT, chatRoutes)
+app.use('/api/friends', authenticateJWT, friendRoutes)
+app.use('/api/profile', authenticateJWT, profileRoutes)
+
+
 
 server.listen(5000, () => {
   console.log('Server running on port 5000');
