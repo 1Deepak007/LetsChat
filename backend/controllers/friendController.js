@@ -70,3 +70,18 @@ exports.getFriends = async (req, res) => {
         res.status(500).json({ message: `Server error : ${err}` });
     }
 }
+
+exports.getFriendByUsername = async (req, res) => {
+    const { username } = req.params;
+    try {
+        const user = await User.findOne({ username }, { password: 0, __v: 0 }).populate('friends', 'username');
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        res.status(200).json(user);
+    }
+    catch (error) {
+        console.error(error);
+        res.status(500).json({ message: `Server error : ${error}` });
+    }
+}
