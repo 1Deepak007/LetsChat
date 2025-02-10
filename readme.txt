@@ -3,12 +3,15 @@ npm init -y
 npm install express mongoose jsonwebtoken bcryptjs redis socket.io dotenv
 
 
-
+// For Mac
 brew install redis
  -> brew services start redis
  Start Redis -> redis-server
  Redis is running -> redis-cli ping          (If you see "PONG", Redis is running fine)
 
+// For Windows
+in terminal -> redis-server
+            -> redis-cli         (type -> ping    get response -> pong)
 
 -------------------------
 npx kill-port 5000  # Kill any process using port 5000
