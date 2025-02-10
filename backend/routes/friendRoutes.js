@@ -1,7 +1,7 @@
 const express = require('express');
 const User = require('../models/User');
 const authenticate = require('../middleware/authMiddleware');
-const { sendRequest, acceptRequest, getFriends, getFriendByUsername } = require('../controllers/friendController');
+const { sendRequest, acceptRequest, getFriends, getFriendByUsernameId } = require('../controllers/friendController');
 
 const router = express.Router();
 
@@ -13,7 +13,7 @@ router.post('/accept-request/:senderId', authenticate, acceptRequest)
 
 router.get('/get-friends/:userId', authenticate, getFriends)
 
-router.get('/find-friend-by-username/:username', authenticate, getFriendByUsername)
+router.get('/find-friend-by-username-or-id/:usernameOrId', authenticate, getFriendByUsernameId)
 
 
 // router.post('/send-request/:receiverId', authenticate, async (req, res) => {

@@ -27,21 +27,49 @@ export const isTokenValid = (token) => {
 };
 
 // Find friend by username
-export const fetchFriendByUsername = async (userId, friendname, token) => {
+// export const fetchFriendByUsername = async (userId, friendname, token) => {
+//     try {
+//         const response = await axios.get(`http://localhost:5000/api/friends/find-friend-by-username/${friendname}`, {
+//             headers: { Authorization: `Bearer ${token}` },
+//         });
+//         // Ensure friends is always an array
+//         const data = response.data;
+//         console.log('Friend by username :', data);
+
+//         // if (data.friends.includes(userId)) {
+//         //     console.log('Request already sent');
+//         // }
+
+//         return Array.isArray(data) ? data : [data];
+//         // return response
+//     } catch (error) {
+//         console.error('Error fetching friends:', error);
+//         return [];
+//     }
+// };
+export const fetchFriendByUsername = async (friendname, token) => {
     try {
-        const response = await axios.get(`http://localhost:5000/api/friends/find-friend-by-username/${friendname}`, {
-            headers: { Authorization: `Bearer ${token}` },
-        });
-        // Ensure friends is always an array
+        let searchTerm;
+        if (friendname !== null) {
+            searchTerm = friendname;
+        }
+
+        console.log('search term : ',friendname)
+
+        // Call the backend API with the search term
+        const response = await axios.get(
+            `http://localhost:5000/api/friends/find-friend-by-username-or-id/${friendname}`,
+            {
+                headers: { Authorization: `Bearer ${token}` },
+            }
+        );
+
+        // Ensure the response data is always an array
         const data = response.data;
-        console.log('Friend by username :', data);
+        console.log('Friend by username or ID:', data);
 
-        // if (data.friends.includes(userId)) {
-        //     console.log('Request already sent');
-        // }
-
+        // If the backend returns a single user, wrap it in an array
         return Array.isArray(data) ? data : [data];
-        // return response
     } catch (error) {
         console.error('Error fetching friends:', error);
         return [];

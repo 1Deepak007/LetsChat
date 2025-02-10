@@ -34,11 +34,13 @@ const Friends = ({ token }) => {
         fetchData();
     }, [token, userId]); // Added userId to dependency array
 
+    console.log('alreadyFriends : ',alreadyFriends)
+
     const handleSearch = async () => {
         if (!friendname.trim()) return;
 
         try {
-            const foundFriends = await fetchFriendByUsername(userId, friendname, token);
+            const foundFriends = await fetchFriendByUsername(friendname, token);
             setFriends(foundFriends);
         } catch (error) {
             console.error('Error searching for friends:', error);
@@ -78,22 +80,15 @@ const Friends = ({ token }) => {
                         Find Your Friends
                         <span className='ml-3'>👥</span>
                     </h2>
-                    {/* <Link to='/' className='bg-blue-500 text-white p-2 rounded-full'>
-                        Home
-                    </Link> */}
-
                     <Link to='/'
-                        // onClick={logout}
                         className='bg-blue-400/90 backdrop-blur-sm text-white px-6 py-2 rounded-full hover:bg-black/70 transition-all duration-300 flex items-center gap-2'
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
                         </svg>
-                        <span 
-                        // className='hover:text-blue-500 hover:bg-black hover:p-1 hover:ps-4 hover:pe-4 rounded-full'
-                        >
+                        <span>
                             Home
-                            </span>
+                        </span>
                     </Link>
                 </div>
                 <div className="items-center mt-3">
@@ -108,7 +103,13 @@ const Friends = ({ token }) => {
                     <input
                         type='text'
                         value={friendname}
-                        onChange={(e) => setFriendname(e.target.value)}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            setFriendname(value);
+                            if (value === "") {
+                                setFriends([]);
+                            }
+                        }}
                         className='w-full px-6 py-3 rounded-2xl border border-gray-200 focus:border-purple-400 focus:ring-4 focus:ring-purple-100 transition-all outline-none pr-24'
                         placeholder="Enter friend's username..."
                         onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -117,7 +118,6 @@ const Friends = ({ token }) => {
                         onClick={handleSearch}
                         className='absolute right-2 top-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white px-6 py-2 rounded-xl hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5'
                     >
-                        {/* Search */}
                         <svg
                             xmlns='http://www.w3.org/2000/svg'
                             className='inline ml-2 h-5 w-5'
@@ -132,11 +132,30 @@ const Friends = ({ token }) => {
             </div>
 
             <div className='mt-8'>
-                {friends.length === 0 ? (
-                    <div className='text-center py-12 bg-gray-50 rounded-2xl'>
-                        <div className='text-4xl mb-4'>😕</div>
-                        <h3 className='text-xl text-gray-600'>No friends found</h3>
-                        <p className='text-gray-400 mt-2'>Try searching with a different ID</p>
+                {friends.length === 0 && friendname === "" ? (
+                    <div className='text-center py-12 bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300'>
+                        <h2 className='text-2xl font-bold text-purple-600 underline decoration-wavy decoration-purple-300'>
+                            Already Friends
+                        </h2>
+                        {alreadyFriends.length === 0 ? (
+                            <div className='mt-8'>
+                                <div className='text-6xl mb-6 text-gray-300'>😕</div>
+                                <h3 className='text-xl text-gray-600 font-semibold'>No friends found</h3>
+                                <p className='text-gray-400 mt-2'>Try searching with a different username or ID</p>
+                            </div>
+                        ) : (
+                            <div className='mt-8 space-y-4'>
+                                {alreadyFriends.map((friend) => (
+                                    <div
+                                        key={friend._id}
+                                        className='flex items-center justify-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300'
+                                    >
+                                        <span className='text-lg text-gray-700 font-medium'>{friend.username}</span>
+                                        <span className='ml-2 text-sm text-gray-500'>👋</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
@@ -151,55 +170,26 @@ const Friends = ({ token }) => {
                                     </div>
                                     <h3 className='text-lg font-semibold text-gray-800 mb-2'>{friend.username}</h3>
                                     <p className='text-sm text-gray-500 mb-4'>User ID: {friend._id.slice(0, 8)}...</p>
-
-
-                                    {
-                                        friend.friends.some(f => f._id === userId) ? (
-                                            <button
-                                                className="w-full py-2 bg-purple-50 text-purple-600 rounded-xl hover:bg-purple-100 transition-colors duration-300 flex items-center justify-center gap-2"
-                                            >
-                                                Already Friends
-                                            </button>
-                                        ) : friend.friendRequests.includes(userId) ? (
-                                            <div className="flex items-center gap-2">
-                                                <div className="w-4 h-4 bg-purple-500 rounded-full"></div>
-                                                <p className="text-xs text-gray-500">Friend Request Sent</p>
-                                            </div>
-                                        ) : (
-                                            <button
-                                                onClick={() => handleSendFriendRequest(friend._id)}
-                                                className="w-full py-2 bg-purple-50 text-purple-600 rounded-xl hover:bg-purple-100 transition-colors duration-300 flex items-center justify-center gap-2"
-                                            >
-                                                <IoMdPersonAdd className="text-xl" />
-                                                Add Friend
-                                            </button>
-                                        )
-                                    }
-
-
-                                    {/* {
-                                        friends[0].friends.includes(userId) ?
-                                            <>
-                                                <button // onClick={() => handleSendFriendRequest(friend._id)}
-                                                    className='w-full py-2 bg-purple-50 text-purple-600 rounded-xl hover:bg-purple-100 transition-colors duration-300 flex items-center justify-center gap-2'
-                                                >Already Friends</button>
-                                            </>
-                                            :
-                                            friends[0].friendRequests.includes(userId) &&
-                                            <div className='flex items-center gap-2'>
-                                                <div className='w-4 h-4 bg-purple-500 rounded-full'></div>
-                                                <p className='text-xs text-gray-500'>Friend Request Sent</p>
-                                            </div>
-
-                                    :
-                                    <button
-                                        onClick={() => handleSendFriendRequest(friend._id)}
-                                        className='w-full py-2 bg-purple-50 text-purple-600 rounded-xl hover:bg-purple-100 transition-colors duration-300 flex items-center justify-center gap-2'
-                                    >
-                                        <IoMdPersonAdd className='text-xl' />
-                                        Add Friend
-                                    </button>
-                                    } */}
+                                    {friend.friends.some(f => f._id === userId) ? (
+                                        <button
+                                            className="w-full py-2 bg-purple-50 text-purple-600 rounded-xl hover:bg-purple-100 transition-colors duration-300 flex items-center justify-center gap-2"
+                                        >
+                                            Already Friends
+                                        </button>
+                                    ) : friend.friendRequests.includes(userId) ? (
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-4 h-4 bg-purple-500 rounded-full"></div>
+                                            <p className="text-xs text-gray-500">Friend Request Sent</p>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={() => handleSendFriendRequest(friend._id)}
+                                            className="w-full py-2 bg-purple-50 text-purple-600 rounded-xl hover:bg-purple-100 transition-colors duration-300 flex items-center justify-center gap-2"
+                                        >
+                                            <IoMdPersonAdd className="text-xl" />
+                                            Add Friend
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}

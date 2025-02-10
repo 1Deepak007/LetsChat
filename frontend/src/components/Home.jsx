@@ -246,9 +246,8 @@ const Home = ({ token, setToken }) => {
                         </Link>
                     </div>
                 </div>
-
                 {selectedFrndId ? (
-                    <div className='space-y-2 md:space-y-4 '>
+                    <div className='space-y-2 md:space-y-4'>
                         <div
                             className="bg-gradient-to-b from-gray-50 to-gray-100 rounded-xl p-4 h-[calc(100vh-15rem)] md:h-[calc(80vh-8rem)] overflow-y-auto shadow-inner">
                             <div className="flex flex-col gap-4">
@@ -330,11 +329,10 @@ const Home = ({ token, setToken }) => {
                                 <LuSend className="inline ms-2" />
                             </button>
                         </div>
-
                     </div>
                 ) : (
-                    <div className='text-center py-12 bg-gray-50 rounded-xl'>
-                        <div className='text-2xl text-gray-500 mb-4'>👋 Select a friend to start chatting!</div>
+                    <div className='text-center py-12 bg-gray-50 rounded-xl h-full'>
+                        <div className='text-2xl text-gray-500 mb-4 my-[20vh]'>👋 Select a friend to start chatting!</div>
                         <div className='text-gray-400'>Your conversations will appear here</div>
                     </div>
                 )}

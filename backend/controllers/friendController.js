@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const User = require('../models/User')
 
 exports.sendRequest = async (req, res) => {
@@ -71,17 +72,38 @@ exports.getFriends = async (req, res) => {
     }
 }
 
-exports.getFriendByUsername = async (req, res) => {
-    const { username } = req.params;
+exports.getFriendByUsernameId = async (req, res) => {
+    const { usernameOrId } = req.params;
+
     try {
-        const user = await User.findOne({ username }, { password: 0, __v: 0 }).populate('friends', 'username');
-        if (!user) {
+        // Check if the search term is a valid ObjectId
+        const isObjectId = mongoose.Types.ObjectId.isValid(usernameOrId);
+
+        // Build the query
+        const query = {
+            $or: [
+                { username: { $regex: usernameOrId, $options: 'i' } }, // Case-insensitive regex for username
+            ]
+        };
+
+        // Add _id to the query only if the search term is a valid ObjectId
+        if (isObjectId) {
+            query.$or.push({ _id: new mongoose.Types.ObjectId(usernameOrId) }); // Cast to ObjectId
+        }
+
+        // Find the user(s) matching the query
+        const users = await User.find(query)
+            .select('-password -__v') // Exclude sensitive fields
+            .populate('friends', 'username'); // Populate friends with only the username field
+
+        if (users.length === 0) {
             return res.status(404).json({ message: "User not found" });
         }
-        res.status(200).json(user);
+
+        // Always return an array, even if it contains a single user
+        res.status(200).json(users);
+    } catch (error) {
+        console.error('Error finding user:', error);
+        res.status(500).json({ message: `Server error: ${error.message}` });
     }
-    catch (error) {
-        console.error(error);
-        res.status(500).json({ message: `Server error : ${error}` });
-    }
-}
+};
