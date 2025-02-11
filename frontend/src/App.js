@@ -51,12 +51,20 @@ function App() {
         />
 
         {/* Protected Routes*/}
-        <Route path="/home" element={
+        {/* <Route path="/home" element={
+          <PrivateRoute>
+            <Home token={token} setToken={setToken} />
+          </PrivateRoute>
+        }
+        /> */}
+
+        <Route path="/home/:_id?" element={
           <PrivateRoute>
             <Home token={token} setToken={setToken} />
           </PrivateRoute>
         }
         />
+
 
         <Route path="/friends" element={
           <PrivateRoute>

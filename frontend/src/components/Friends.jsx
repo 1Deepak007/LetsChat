@@ -3,14 +3,18 @@ import { jwtDecode } from 'jwt-decode';
 import React, { useEffect, useState } from 'react';
 import { IoMdPersonAdd } from 'react-icons/io';
 import { isTokenValid, fetchFriendsList, fetchFriendByUsername, sendFriendRequest, getUserProfile } from './functions/friends';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { FaRegMessage } from "react-icons/fa6";
 
 const Friends = ({ token }) => {
+    const navigate = useNavigate()
+
     const [alreadyFriends, setAlreadyFriends] = useState([]);
     const [friends, setFriends] = useState([]);
     const [friendname, setFriendname] = useState('');
     const [userId, setUserId] = useState('');
     const [userProfile, setUserProfile] = useState(null);
+
 
     // Fetch friends in friendslist (already friends) and user profile
     useEffect(() => {
@@ -34,7 +38,7 @@ const Friends = ({ token }) => {
         fetchData();
     }, [token, userId]); // Added userId to dependency array
 
-    console.log('alreadyFriends : ',alreadyFriends)
+    console.log('alreadyFriends : ', alreadyFriends)
 
     const handleSearch = async () => {
         if (!friendname.trim()) return;
@@ -151,7 +155,12 @@ const Friends = ({ token }) => {
                                         className='flex items-center justify-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300'
                                     >
                                         <span className='text-lg text-gray-700 font-medium'>{friend.username}</span>
-                                        <span className='ml-2 text-sm text-gray-500'>👋</span>
+                                        <div className='flex'>
+                                            <button onClick={() => { navigate(`/home/${friend._id}`) }} className='text-black p-2 flex'>
+                                                <span className='ml-2 text-sm text-gray-500'>👋Say Hi..</span>
+                                                <FaRegMessage/>
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
@@ -207,64 +216,3 @@ export default Friends;
 
 
 
-
-
-
-// import axios from 'axios'
-// import React, { useState } from 'react'
-// import { IoMdPersonAdd } from "react-icons/io";
-
-// const Friends = () => {
-
-//     const [friends, setfriends] = useState([]);
-//     const [friendname, setfriendname] = useState('');
-
-//     // Fetch friends list
-//     const fetchFriend = async () => {
-//         try {
-//             const response = await axios.get(`http://localhost:5000/api/friends/find-friend-by-username/${friendname}`, {
-//                 headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-//             });
-//             setfriends(response.data || []);
-//         } catch (error) {
-//             console.error('Error fetching friends:', error);
-//         } finally {
-//             console.log(friends)
-//         }
-//     }
-
-
-//     return (
-//         <div>
-//             <h2 className='text-center text-xl underline'>Search for your friends</h2>
-//             <div className='flex justify-center mt-3'>
-//                 {/* Search bar */}
-//                 <input type='text' onChange={(e) => setfriendname(e.target.value)} className='border-2 p-2 rounded-md w-1/3' placeholder='Search for friends by their id ...' />
-//                 <button className='bg-black text-white ps-3 pe-3 rounded-full ms-3' onClick={fetchFriend}>Find friend</button>
-//             </div>
-//             <div className='mt-4'>
-//                 <div className='flex flex-wrap justify-center'>
-//                     {
-//                         friends.length === 0 ?
-//                             <p className='text-center'>No friends found.</p>
-//                             :
-//                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-//                                 {
-//                                     Array.isArray(friends) ? friends.map(friend => (
-//                                         <div key={friend._id} className="bg-white rounded-xl p-4 shadow-md">
-//                                             <h3 className="text-xl font-bold">{friend.username}</h3>
-//                                             <div className="flex justify-center mt-2">
-//                                                 <IoMdPersonAdd className="text-3xl" />
-//                                             </div>
-//                                         </div>
-//                                     )) : <p className='text-center'>No friends found.</p>
-//                                 }
-//                             </div>
-//                     }
-//                 </div>
-//             </div>
-//         </div>
-//     )
-// }
-
-// export default Friends
