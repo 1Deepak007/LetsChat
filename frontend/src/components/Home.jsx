@@ -90,20 +90,22 @@ const Home = ({ token, setToken }) => {
     const fetchMessages = async (userId, selectedFrndId) => {
         if (!selectedFrndId) return;
         setIsLoading(true);
-        try {
-            const response = await axios.get(`http://localhost:5000/api/chat/messages?`, {
-                headers: { Authorization: `Bearer ${token}` },
-                params: {
-                    receiver: selectedFrndId,
-                    sender: userId
-                }
-            });
-            setMessages(response.data);
-        } catch (error) {
-            console.error(`Error fetching messages: ${error.message}.`);
-            setError(`Unable to get messages: ${error.message}.`);
-        } finally {
-            setIsLoading(false);
+        if(selectedFrndId != null||'' & userId != null||''){
+            try {
+                const response = await axios.get(`http://localhost:5000/api/chat/messages?`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                    params: {
+                        sender: userId,
+                        receiver: selectedFrndId
+                    }
+                });
+                setMessages(response.data);
+            } catch (error) {
+                console.error(`Error fetching messages: ${error.message}.`);
+                setError(`Unable to get messages: ${error.message}.`);
+            } finally {
+                setIsLoading(false);
+            }
         }
     };
 

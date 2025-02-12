@@ -30,7 +30,8 @@ module.exports = (io) => {
                 $or: [
                     { sender: senderId, receiver: receiverId },
                     { sender: receiverId, receiver: senderId }
-                ]
+                ],
+                isDeleted:false
             }).sort({ timestamp: 1 }).lean(); // `lean()` improves performance
 
             res.json(messages);
@@ -74,5 +75,63 @@ module.exports = (io) => {
         }
     };
 
-    return { getMessages, sendMessage };
+    const editMessage = async(req,res) => {
+        const {messageId,newContent} = req.body;
+        try{
+            const message = await Message.findById(messageId);
+            if(!message){
+                return res.status(404).json({message:'Message not found.'})
+            }
+            const sixHoursAgo = new Date(Date.now() - 6*60*60*100);
+            if(message.timestamp < sixHoursAgo){
+                return res.status(400).json({message:'Message is too old to edit.'})
+            }
+            message.content = newContent;
+            message.idEdited = true;
+            message.lastEditedAt = new Date();
+            await message.save();
+
+            // emit edited message to sender and receiver
+            io.to(message.sender.toString()).emit('messageEdited',message);
+            io.to(message.receiver.toString()).emit('messageEdited',message);
+            res.status(200).json({message:'Message edited', data:message})
+        }
+        catch(err){
+            console.error(`Error in editmessage. ${err}`)
+            res.status(500).json({message:`Server error : ${err.message}`})
+        }
+    }
+
+
+    const deleteMessage = async (req, res) => {
+        const { messageId } = req.body;
+
+        try {
+            const message = await Message.findById(messageId);
+            if (!message) {
+                return res.status(404).json({ message: 'Message not found' });
+            }
+
+            // Check if the message is older than 6 hours
+            const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+            if (message.timestamp < sixHoursAgo) {
+                return res.status(400).json({ message: 'Message is too old to delete' });
+            }
+
+            // Soft delete the message
+            message.isDeleted = true;
+            await message.save();
+
+            // Emit deleted message to both sender & receiver
+            io.to(message.sender.toString()).emit('messageDeleted', message);
+            io.to(message.receiver.toString()).emit('messageDeleted', message);
+
+            res.status(200).json({ message: 'Message deleted', data: message });
+        } catch (err) {
+            console.error('Error in deleteMessage:', err);
+            res.status(500).json({ message: `Server error: ${err.message}` });
+        }
+    };
+
+    return { getMessages, sendMessage, editMessage, deleteMessage };
 };

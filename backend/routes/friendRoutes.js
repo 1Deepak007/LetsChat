@@ -15,6 +15,8 @@ router.get('/get-friends/:userId', authenticate, getFriends)
 
 router.get('/find-friend-by-username-or-id/:usernameOrId', authenticate, getFriendByUsernameId)
 
+module.exports = router;
+
 
 // router.post('/send-request/:receiverId', authenticate, async (req, res) => {
 //     const { receiverId } = req.params;
@@ -82,4 +84,4 @@ router.get('/find-friend-by-username-or-id/:usernameOrId', authenticate, getFrie
 //     }
 // });
 
-module.exports = router;
+// module.exports = router;

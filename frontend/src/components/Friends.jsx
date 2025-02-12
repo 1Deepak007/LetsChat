@@ -149,7 +149,21 @@ const Friends = ({ token }) => {
                             </div>
                         ) : (
                             <div className='mt-8 space-y-4'>
-                                {alreadyFriends.map((friend) => (
+                                {alreadyFriends.map((friend, index) => (
+                            <div
+                                key={`${friend._id}_${index}`}
+                                className='flex items-center justify-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300'
+                            >
+                                <span className='text-lg text-gray-700 font-medium'>{friend.username}</span>
+                                <div className='flex'>
+                                    <button onClick={() => { navigate(`/home/${friend._id}`) }} className='text-black p-2 flex'>
+                                        <span className='ml-2 text-sm text-gray-500'>Say Hi..</span>
+                                        <FaRegMessage/>
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                                {/* {alreadyFriends.map((friend) => (
                                     <div
                                         key={friend._id}
                                         className='flex items-center justify-center bg-gray-50 p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300'
@@ -162,7 +176,7 @@ const Friends = ({ token }) => {
                                             </button>
                                         </div>
                                     </div>
-                                ))}
+                                ))} */}
                             </div>
                         )}
                     </div>
