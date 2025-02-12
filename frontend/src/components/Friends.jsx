@@ -38,7 +38,7 @@ const Friends = ({ token }) => {
         fetchData();
     }, [token, userId]); // Added userId to dependency array
 
-    console.log('alreadyFriends : ', alreadyFriends)
+    // console.log('alreadyFriends : ', alreadyFriends)
 
     const handleSearch = async () => {
         if (!friendname.trim()) return;
@@ -51,7 +51,7 @@ const Friends = ({ token }) => {
             alert('Failed to search for friends. Please try again.');
         }
     };
-    console.log('Friends : ', friends)
+    // console.log('Friends : ', friends)
 
     const handleSendFriendRequest = async (friendId) => {
         if (friends[0].friendRequests.includes(userId)) {

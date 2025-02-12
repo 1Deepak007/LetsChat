@@ -24,12 +24,12 @@ const Home = ({ token, setToken }) => {
     const decodedToken = jwtDecode(token);
 
     const { _id } = useParams();
-    console.log('----------->selected user`s _id : ',_id);
+    // console.log('----------->selected user`s _id : ',_id);
     // console.log('.......current user ',currentUser._id);
 
     useEffect(()=>{
         if(_id){
-            console.log(`_id : ${_id}. current user id : ${decodedToken.id}`)
+            // console.log(`_id : ${_id}. current user id : ${decodedToken.id}`)
             // setCurrentUserId(_id);
             setSelectedFrndId(_id)
             fetchMessages(decodedToken.id,_id);
@@ -184,7 +184,7 @@ const Home = ({ token, setToken }) => {
         return () => {
             newSocket.off("newMessage");
             newSocket.disconnect();
-            console.log('Socket disconnected');
+            // console.log('Socket disconnected');
         };
     }, [token, selectedFrndId]);
 
