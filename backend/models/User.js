@@ -4,11 +4,21 @@ const bcrypt = require('bcryptjs')
 const userSchema = new mongoose.Schema({
     username: { type: String, required: true, unique: true },
     password: { type: String, required: true },
-    friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],  // Friends list
-    friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Incoming requests
-    notifications: [{ type: String }] // One-time notifications
-});
-
+    friends: [{
+      _id: false,
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      username: String
+    }],
+    friendRequests: [{
+      _id: false,
+      userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      username: String
+    }],
+    notifications: [{
+      message: String,
+      createdAt: { type: Date, default: Date.now }
+    }]
+  });
 userSchema.pre('save', async function (next) {
     if (!this.isModified('password')) return next()
     this.password = await bcrypt.hash(this.password, 10)

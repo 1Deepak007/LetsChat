@@ -27,16 +27,6 @@ const Home = ({ token, setToken }) => {
     // console.log('----------->selected user`s _id : ',_id);
     // console.log('.......current user ',currentUser._id);
 
-    useEffect(()=>{
-        if(_id){
-            // console.log(`_id : ${_id}. current user id : ${decodedToken.id}`)
-            // setCurrentUserId(_id);
-            setSelectedFrndId(_id)
-            fetchMessages(decodedToken.id,_id);
-        }
-    },[_id])
-
-
 
     const seledtedUser = useRef('');
     const updateSelectedUser = () => {
@@ -77,6 +67,8 @@ const Home = ({ token, setToken }) => {
             const response = await axios.get(`http://localhost:5000/api/friends/get-friends/${userId}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
+            console.log(response);
+            console.log(response.data);
             setFriends(response.data);
         } catch (error) {
             console.error("Error fetching friends:", error);
@@ -140,6 +132,7 @@ const Home = ({ token, setToken }) => {
     const handleSelectFriend = (e) => {
         const friendId = e.target.value;
         setSelectedFrndId(friendId);
+        console.log("Selected friend:", friendId, "Current user:", currentUserId);
         fetchMessages(currentUserId, friendId); // Fetch messages when selecting a friend
     };
 
@@ -187,6 +180,15 @@ const Home = ({ token, setToken }) => {
             // console.log('Socket disconnected');
         };
     }, [token, selectedFrndId]);
+
+    useEffect(()=>{
+        if(_id){
+            // console.log(`_id : ${_id}. current user id : ${decodedToken.id}`)
+            // setCurrentUserId(_id);
+            setSelectedFrndId(_id)
+            fetchMessages(decodedToken.id,_id);
+        }
+    },[_id])
 
     // Fetch User Profile & Friends
     useEffect(() => {
@@ -360,4 +362,5 @@ const Home = ({ token, setToken }) => {
 };
 
 export default Home;
+
 

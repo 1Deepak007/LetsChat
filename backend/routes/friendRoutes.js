@@ -15,6 +15,9 @@ router.get('/get-friends/:userId', authenticate, getFriends)
 
 router.get('/find-friend-by-username-or-id/:usernameOrId', authenticate, getFriendByUsernameId)
 
+// router.get('/get-firend-requests/:userId', authenticate, getFriendRequests)
+
+
 module.exports = router;
 
 
