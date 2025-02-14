@@ -12,24 +12,10 @@ exports.getUserProfile = async (req, res) => {
 
         res.json(user);
     } catch (err) {
-        console.error('Error in getUserProfile:', err);
+        // console.error('Error in getUserProfile:', err);
         res.status(500).json({ message: `Server error: ${err.message}` });
     }
 };
-// exports.getUserProfile = async (req, res) => {
-//     const userId = req.params.id;
-
-//     try {
-//         const user = await User.findById(userId).select('-password');
-//         if (!user) return res.status(404).json({ message: 'User not found' });
-
-//         res.json(user);
-//     } catch (err) {
-//         console.error('Error in getUserProfile:', err);
-//         res.status(500).json({ message: `Server error: ${err.message}` });
-//     }
-// };
-
 
 // update user's profile
 exports.updateUserProfile = async (req, res) => {
@@ -53,15 +39,15 @@ exports.changePassword = async (req, res) => {
         const isMatch = await bcrypt.compare(oldPassword, user.password);
         if (!isMatch) return res.status(400).json({ message: 'Incorrect old password' });
 
-        console.log('Old Password Hash:', user.password);
-        console.log('New Password Before Hashing:', newPassword);
+        // console.log('Old Password Hash:', user.password);
+        // console.log('New Password Before Hashing:', newPassword);
 
         user.password = newPassword;
         // user.password = await bcrypt.hash(newPassword, 10);
         // console.log('New Password After Hashing:', user.password);
 
         await user.save();
-        console.log('New Password After Hashing:', user.password);
+        // console.log('New Password After Hashing:', user.password);
         res.json({ message: 'Password changed successfully' });
     } catch (err) {
         res.status(500).json({ message: 'Server error', error: err });

@@ -51,7 +51,7 @@ exports.sendRequest = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("Error sending friend request:", err);
+    // console.error("Error sending friend request:", err);
     res.status(500).json({
       message: "Server error",
       error: err.message,
@@ -159,7 +159,7 @@ exports.getFriendByUsernameId = async (req, res) => {
     // Always return an array, even if it contains a single user
     res.status(200).json(users);
   } catch (error) {
-    console.error("Error finding user:", error);
+    // console.error("Error finding user:", error);
     res.status(500).json({ message: `Server error: ${error.message}` });
   }
 };

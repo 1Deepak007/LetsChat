@@ -7,7 +7,6 @@ module.exports = (io) => {
 
     router.get('/messages', authenticate, getMessages);
     router.post('/sendmessage', authenticate, sendMessage);
-    // router.delete('/deletemessage/:messageId', authenticate, deleteMessage);
     router.put('/editmessage', authenticate, editMessage);
     router.delete('/deletemessage', authenticate, deleteMessage);
 
@@ -15,13 +14,3 @@ module.exports = (io) => {
 };
 
 
-
-// const express = require('express')
-// const { getMessages, sendMessage } = require('../controllers/chatController')
-// const authenticate = require('../middleware/authMiddleware')
-// const router = express.Router()
-
-// router.get('/messages', authenticate, getMessages)
-// router.post('/sendmessage', authenticate, sendMessage)
-
-// module.exports = router

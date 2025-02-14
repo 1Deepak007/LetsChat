@@ -52,7 +52,7 @@ module.exports = (io) => {
 
       res.json(messages);
     } catch (err) {
-      console.error("Error in getMessages:", err);
+    //   console.error("Error in getMessages:", err);
       res.status(500).json({ message: `Server error: ${err.message}` });
     }
   };
@@ -102,7 +102,7 @@ module.exports = (io) => {
 
       res.status(201).json({ message: "Message sent", data: message });
     } catch (err) {
-      console.error("Error in sendMessage:", err);
+    //   console.error("Error in sendMessage:", err);
       res.status(500).json({ message: `Server error: ${err.message}` });
     }
   };
@@ -141,7 +141,7 @@ module.exports = (io) => {
 
       res.status(200).json({ message: "Message edited", data: message });
     } catch (err) {
-      console.error(`Error in editMessage: ${err}`);
+    //   console.error(`Error in editMessage: ${err}`);
       res.status(500).json({ message: `Server error: ${err.message}` });
     }
   };
@@ -182,7 +182,7 @@ module.exports = (io) => {
 
       res.status(200).json({ message: "Message deleted", data: message });
     } catch (err) {
-      console.error("Error in deleteMessage:", err);
+    //   console.error("Error in deleteMessage:", err);
       res.status(500).json({ message: `Server error: ${err.message}` });
     }
   };

@@ -11,7 +11,7 @@ exports.register = async (req, res) => {
         user = await User.create({ username, password });
         res.status(201).json({ message: 'User created. ', user })
     } catch (err) {
-        console.error(err);
+        // console.error(err);
         res.status(500).json({ message: 'Server error' });
     }
 }
@@ -36,7 +36,7 @@ exports.login = async (req, res) => {
 
 
         user.password = undefined; // remove password when sending user in json
-        console.log("user : ", user);
+        // console.log("user : ", user);
 
         // set jwt token in cookies
         res.cookie('token', token, {
@@ -67,7 +67,7 @@ exports.logout = async (req, res) => {
         await redisClient.setex(`blacklist:${token}`, 6 * 3600, 'logged out');
         res.status(200).json({ message: 'User logged out successfully' });
     } catch (err) {
-        console.error('Logout error:', err);
+        // console.error('Logout error:', err);
         res.status(500).json({ message: `Server error: ${err.message}` });
     }
 };

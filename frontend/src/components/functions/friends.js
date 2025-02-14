@@ -1,20 +1,6 @@
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 
-// Fetch friends list (already friends)
-// export const fetchFriendsList = async (user_id, token) => {
-//     try {
-//         const response = await axios.get(`http://localhost:5000/api/friends/get-friends/${user_id}`, {
-//             headers: { Authorization: `Bearer ${token}` },
-//         });
-//         // Ensure friends is always an array
-//         const data = response.data;
-//         return Array.isArray(data) ? data : [data];
-//     } catch (error) {
-//         console.error('Error fetching friends:', error);
-//         return [];
-//     }
-// };
 export const fetchFriendsList = async (userId, token) => {
     try {
       const response = await axios.get(
@@ -23,6 +9,7 @@ export const fetchFriendsList = async (userId, token) => {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
+      console.log(response);
   
       // Check if response data is an array
       if (!Array.isArray(response.data)) {
@@ -32,7 +19,8 @@ export const fetchFriendsList = async (userId, token) => {
   
       // Transform response to match expected format
       return response.data.map((friend) => ({
-        id: friend.userId,
+        _id: friend.userId, // Use _id for consistency
+        userId: friend.userId,
         username: friend.username,
       }));
     } catch (error) {
@@ -51,27 +39,6 @@ export const isTokenValid = (token) => {
   }
 };
 
-// Find friend by username
-// export const fetchFriendByUsername = async (userId, friendname, token) => {
-//     try {
-//         const response = await axios.get(`http://localhost:5000/api/friends/find-friend-by-username/${friendname}`, {
-//             headers: { Authorization: `Bearer ${token}` },
-//         });
-//         // Ensure friends is always an array
-//         const data = response.data;
-//         console.log('Friend by username :', data);
-
-//         // if (data.friends.includes(userId)) {
-//         //     console.log('Request already sent');
-//         // }
-
-//         return Array.isArray(data) ? data : [data];
-//         // return response
-//     } catch (error) {
-//         console.error('Error fetching friends:', error);
-//         return [];
-//     }
-// };
 export const fetchFriendByUsername = async (friendname, token) => {
   try {
     let searchTerm;

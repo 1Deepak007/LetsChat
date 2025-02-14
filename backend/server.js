@@ -35,7 +35,6 @@ app.get('/getallusers', async (req, res) => {
     const users = await User.find({});
     res.status(200).json(users);
   } catch (err) {
-    console.error(err);
     res.status(500).json({ message: 'Error retrieving users' });
   }
 });
@@ -64,11 +63,9 @@ io.use((socket, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     socket.userId = decoded.id;
     socket.join(socket.userId);
-    console.log(`User ${socket.userId} joined room`);
     next()
   }
   catch (err) {
-    console.error('Error in socket authentication:', err);
     return next(new Error('Authentication error'));
   }
 })
@@ -76,12 +73,6 @@ io.use((socket, next) => {
 
 
 io.on('connection', (socket) => {
-  console.log('A user connected:', socket.id);
-
-  // User joins their personal room
-  // socket.on('join', (userId) => {
-
-  // });
 
   // Handle real-time messaging
   socket.on('send_message', async ({ sender, receiver, message }) => {
