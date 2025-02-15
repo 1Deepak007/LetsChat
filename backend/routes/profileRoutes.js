@@ -1,11 +1,21 @@
 const express = require('express');
-const authenticate = require('../middleware/authMiddleware');
-const { getUserProfile, updateUserProfile, changePassword } = require('../controllers/profileController');
+const {
+  getUserProfile,
+  updateUserProfile,
+  changePassword,
+  unfriend,
+  rejectFriendRequest,
+} = require('../controllers/profileController');
+const authenticate = require("../middleware/authMiddleware"); // Import auth middleware
 
-const router = express.Router();
+module.exports = (upload) => {
+  const router = express.Router();
 
-router.get('/:userId', authenticate, getUserProfile);
-router.put('/update', authenticate, updateUserProfile);
-router.put('/change-password', authenticate, changePassword);
+  router.get('/:userId', getUserProfile); // Can remove auth if you want public profiles
+  router.put('/update', authenticate, upload.single('profilePicture'), updateUserProfile); // Auth + upload
+  router.put('/change-password', authenticate, changePassword); // Add auth here!
+  router.delete('/unfriend/:friendId', authenticate, unfriend); // Add auth here!
+  router.put('/reject-request/:requestId', authenticate, rejectFriendRequest); // Add auth here!
 
-module.exports = router;
+  return router;
+};

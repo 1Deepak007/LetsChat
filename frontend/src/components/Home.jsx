@@ -209,6 +209,56 @@ const Home = ({ token, setToken }) => {
         fetchFriends(decodedToken.id);
     }, [token]);
 
+
+    useEffect(() => {
+        if (!token) {
+            console.error("No token found.");
+            return;
+        }
+    
+        const newSocket = io('http://localhost:5000', {
+            transports: ['websocket', 'polling'],
+            withCredentials: true,
+            auth: { token }
+        });
+    
+        setSocket(newSocket);
+    
+        newSocket.on("connect", () => {
+            console.log("Connected to socket.io server");
+            // Emit the 'join' event after successful connection
+            newSocket.emit('join', decodedToken.id); // Emit the 'join' event
+        });
+    
+        // Listen for new messages (same as before)
+        newSocket.on("newMessage", (newMessage) => {
+            // ... (your existing message handling logic)
+        });
+    
+        // *** New: Friend request event listeners ***
+        newSocket.on('friendRequestRejected', (data) => {
+            console.log("Friend Request Rejected:", data.message);
+            // Update UI: Remove friend request from the list (using data.relatedUserId)
+            setFriends(prevFriends => prevFriends.filter(friend => friend._id !== data.relatedUserId)); // Example, adapt to your data structure.
+            // Optionally, fetch updated friend requests or notifications.
+        });
+    
+        newSocket.on('friendRequestAccepted', (data) => {
+            console.log("Friend Request Accepted:", data.message);
+            // Update UI: Remove friend request, add friend to the list (using data.relatedUserId)
+            setFriends(prevFriends => [...prevFriends, {_id: data.relatedUserId}]); // Example, adapt to your data structure.
+            // Optionally, fetch updated friend requests or notifications.
+        });
+    
+        return () => {
+            newSocket.off("newMessage");
+            newSocket.off('friendRequestRejected'); // Clean up the listener
+            newSocket.off('friendRequestAccepted'); // Clean up the listener
+            newSocket.disconnect();
+        };
+    }, [token, selectedFrndId, decodedToken.id]); // Add decodedToken.id as a dependency
+    
+
     return (
         <div className='mt-2 max-w-4xl mx-auto px-1 md:mt-8 md:px-4 h-[100%]'>
             <div className='flex justify-between items-center mb-8 bg-gradient-to-r from-purple-600 to-blue-500 p-4 rounded-xl shadow-lg'>
@@ -238,6 +288,19 @@ const Home = ({ token, setToken }) => {
 
             <div className='bg-white rounded-xl shadow-xl p-1 md:p-6 md:h-[calc(100vh-20rem)]'>
                 <div className='flex flex-row md:flex-row justify-between items-start md:items-center gap-4 mb-2'>
+
+                {currentUser && currentUser.notifications && currentUser.notifications.map((notification, index) => (
+  <div key={index}>
+    {notification.type === 'friendRequestRejected' && (
+      <p>{notification.message}</p>
+    )}
+    {notification.type === 'friendRequestAccepted' && (
+      <p>{notification.message}</p>
+    )}
+    {/* Other notification types */}
+  </div>
+))}
+
                     <div className='md:w-full flex md:w-1/2 space-y-4 md:p-6'>
                         {error && (
                             <div className='bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg'>

@@ -1,6 +1,17 @@
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 
+
+// Validate token
+export const isTokenValid = (token) => {
+  try {
+    const decoded = JSON.parse(atob(token.split(".")[1])); // Decode payload
+    return decoded.exp * 1000 > Date.now(); // Compare expiry with current time
+  } catch (error) {
+    return false;
+  }
+};
+
 export const fetchFriendsList = async (userId, token) => {
     try {
       const response = await axios.get(
@@ -28,16 +39,6 @@ export const fetchFriendsList = async (userId, token) => {
       return [];
     }
   };
-
-// Validate token
-export const isTokenValid = (token) => {
-  try {
-    const decoded = JSON.parse(atob(token.split(".")[1])); // Decode payload
-    return decoded.exp * 1000 > Date.now(); // Compare expiry with current time
-  } catch (error) {
-    return false;
-  }
-};
 
 export const fetchFriendByUsername = async (friendname, token) => {
   try {
@@ -114,6 +115,20 @@ export const acceptFriendRequest = async (requestId, token) => {
     return response;
   } catch (error) {
     console.error(`Error accepting request. ${error}`);
+    throw error;
+  }
+};
+
+export const rejectFriendRequest = async (requestId, token) => {
+  try {
+    const response = await axios.put(
+      `http://localhost:5000/api/friends/reject-request/${requestId}`,
+      null,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response;
+  } catch (error) {
+    console.error(`Error rejecting request. ${error}`);
     throw error;
   }
 };

@@ -13,6 +13,7 @@ import {
     sendFriendRequest,
     getUserProfile,
     acceptFriendRequest,
+    rejectFriendRequest
 } from './functions/friends';
 
 const Friends = ({ token }) => {
@@ -47,6 +48,17 @@ const Friends = ({ token }) => {
             setFriendRequests((prev) => prev.filter((req) => req.senderId !== requestId));
         } catch (error) {
             console.error('Error accepting friend request:', error);
+        }
+    }, []);
+
+    // Handle rejecting a friend request
+    const handleRejectRequest = useCallback(async (requestId, token) => {
+        if (!requestId || !token) return;
+        try {
+            await rejectFriendRequest(requestId, token);
+            setFriendRequests((prev) => prev.filter((req) => req.senderId !== requestId));
+        } catch (error) {
+            console.error('Error rejecting friend request:', error);
         }
     }, []);
 
@@ -148,36 +160,38 @@ const Friends = ({ token }) => {
         <>
             {/* Header Section */}
             <div className='text-center mb-3 md:mb-8'>
-            <div className='flex items-center justify-between md:mt-6 px-4 md:px-8'> {/* Changed to justify-between */}
-    {/* Heading with Gradient and Animation - Centered */}
-    <div className="flex-grow pt-3 md:pt-0"> {/* Takes up available space */}
-        <h2 className='text-center text-2xl md:text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent animate-gradient'>
-            Find Your Friends <span className='ml-3 animate-bounce'>👥</span>
-        </h2>
-    </div>
-    {/* Home Button with Hover Effect - Right Aligned */}
-    <Link
-        to='/'
-        className='bg-gradient-to-r from-blue-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-full hover:from-purple-600 hover:to-blue-500 transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105'
-    >
-        <svg
-            xmlns='http://www.w3.org/2000/svg'
-            className='h-6 w-6'
-            fill='none'
-            viewBox='0 0 24 24'
-            stroke='currentColor'
-        >
-            <path
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                strokeWidth={2}
-                d='M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1'
-            />
-        </svg>
-        <span className='text-sm md:text-base'>Home</span>
-    </Link>
+                <div className='flex items-center justify-between md:mt-6 px-4 md:px-8'> {/* Changed to justify-between */}
+                    {/* Heading with Gradient and Animation - Centered */}
+                    <div className="flex-grow pt-3 md:pt-0"> {/* Takes up available space */}
+                        <h2 className='text-center text-2xl md:text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent animate-gradient mx-auto'>
+                            Find Your Friends <span className='ml-3 animate-bounce'>👥</span>
+                        </h2>
+                    </div>
+                    {/* Home Button with Hover Effect - Left Aligned */}
+                    <Link
+                        to='/'
+                        className='bg-gradient-to-r from-blue-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-full hover:from-purple-600 hover:to-blue-500 transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105'
+                    >
+                        <svg
+                            xmlns='http://www.w3.org/2000/svg'
+                            className='md:h-6 md:w-6 w-5 h-5'
+                            fill='none'
+                            viewBox='0 0 24 24'
+                            stroke='currentColor'
+                        >
+                            <path
+                                strokeLinecap='round'
+                                strokeLinejoin='round'
+                                strokeWidth={2}
+                                d='M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1'
+                            />
+                        </svg>
+                        <span className='text-sm md:text-base'>Home</span>
+                    </Link>
+                    
 
-</div>
+
+                </div>
                 <p className='text-gray-500 mt-2 mx-auto'>
                     Connect with friends using their unique ID
                 </p>
@@ -268,8 +282,8 @@ const Friends = ({ token }) => {
                                                 <h3 className="mb-2 text-xl font-bold tracking-tight text-gray-900 dark:text-gray-600">
                                                     {friend.username.charAt(0).toUpperCase() + friend.username.slice(1)}
                                                 </h3>
-                                                <Link to={``}>
-                                                    <FaRegMessage className="text-xl self-end hover:text-blue-600 hover:bg-text-200 " />
+                                                <Link to={`/home/${friend.userId}`}>
+                                                    <FaRegMessage className="text-3xl md:text-xl self-end hover:text-blue-600 hover:bg-text-200 " />
                                                 </Link>
                                             </div>
 
@@ -288,9 +302,7 @@ const Friends = ({ token }) => {
                                                     <p className="text-xs text-gray-500">Friend Request Sent</p>
                                                 </div>
                                             ) : (
-                                                <button onClick={() => handleSendFriendRequest(friend._id)}
-                                                    className="w-full py-2 bg-green-500 text-white rounded-lg hover:bg-blue-600 
-                                   transition-colors duration-300 flex items-center justify-center gap-2">
+                                                <button onClick={() => handleSendFriendRequest(friend._id)} className="w-full py-2 bg-green-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-300 flex items-center justify-center gap-2">
                                                     Add Friend
                                                 </button>
                                             )}
@@ -334,7 +346,7 @@ const Friends = ({ token }) => {
                                         {/* Action Buttons */}
                                         <div className="flex gap-2 justify-end">
                                             <button
-                                                // onClick={() => handleRejectRequest(request)}
+                                                onClick={() => handleRejectRequest(request.senderId, token)}
                                                 className="w-[50%] px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors duration-200"
                                             >
                                                 Reject
