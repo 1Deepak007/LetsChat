@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const User = require("../models/User");
+const Message = require("../models/Message");
 
 exports.sendRequest = async (req, res) => {
   const { receiverId } = req.params;
@@ -61,6 +62,8 @@ exports.sendRequest = async (req, res) => {
   }
 };
 
+
+// accept req using sender's userId
 exports.acceptRequest = async (req, res, io) => {
   const { senderId } = req.params;
   const receiverId = req.user.id;
@@ -168,6 +171,7 @@ exports.rejectFriendRequest = async (req, res, io) => {
   }
 };
 
+
 exports.getFriends = async (req, res) => {
   const { userId } = req.params;
   try {
@@ -225,4 +229,42 @@ exports.getFriendByUsernameId = async (req, res) => {
     // console.error("Error finding user:", error);
     res.status(500).json({ message: `Server error: ${error.message}` });
   }
+};
+
+exports.unfriend = async (req, res, io) => {
+    try {
+        const userId = req.user.id; // The user initiating the unfriend action
+        const friendId = req.params.friendId; // The user to be unfriended
+
+        const user = await User.findById(userId);
+        const friend = await User.findById(friendId);
+
+        if (!user || !friend) {
+            return res.status(404).json({ message: "User or friend not found" });
+        }
+
+        // 1. Remove from friends lists
+        user.friends = user.friends.filter(f => f.userId.toString() !== friendId);
+        friend.friends = friend.friends.filter(f => f.userId.toString() !== userId);
+
+        await user.save();
+        await friend.save();
+
+        // 2. Delete messages
+        await Message.deleteMany({
+            $or: [
+                { sender: userId, receiver: friendId },
+                { sender: friendId, receiver: userId },
+            ],
+        });
+
+        // Socket.IO notification (optional but good practice)
+        io.to(friendId).emit("unfriended", { userId }); // Notify the other user
+
+        res.json({ message: "User unfriended" });
+
+    } catch (err) {
+        console.error("Unfriend error:", err);
+        res.status(500).json({ message: "Server error", error: err.message });
+    }
 };

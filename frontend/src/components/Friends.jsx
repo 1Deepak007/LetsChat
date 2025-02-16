@@ -1,11 +1,11 @@
-import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
 import React, { useEffect, useState, useCallback } from 'react';
+import { jwtDecode } from 'jwt-decode';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
 import { IoMdPersonAdd } from 'react-icons/io';
 import { FaRegMessage } from "react-icons/fa6";
 import { FaRegUser } from "react-icons/fa";
 import { LuSmile } from "react-icons/lu";
-import { Link, useNavigate } from 'react-router-dom';
 import {
     isTokenValid,
     fetchFriendsList,
@@ -15,6 +15,8 @@ import {
     acceptFriendRequest,
     rejectFriendRequest
 } from './functions/friends';
+import Notifications from './SubComponents/Notifications';
+import FriendRequests from './SubComponents/FriendRequests';
 
 const Friends = ({ token }) => {
     const navigate = useNavigate();
@@ -24,10 +26,10 @@ const Friends = ({ token }) => {
     const [userId, setUserId] = useState('');
     const [userProfile, setUserProfile] = useState(null);
     const [friendRequests, setFriendRequests] = useState([]);
+    const [notifications, setNotifications] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
-    // Decode token and set userId on component mount
     useEffect(() => {
         if (!token || !isTokenValid(token)) {
             navigate('/login');
@@ -38,9 +40,7 @@ const Friends = ({ token }) => {
         setUserId(decodedToken.id);
     }, [token, navigate]);
 
-    // Handle accepting a friend request
     const handleAcceptRequest = useCallback(async (requestId, token) => {
-        console.log(`handle request, requestId: ${requestId}, token: ${token}`);
         if (!requestId || !token) return;
 
         try {
@@ -51,7 +51,6 @@ const Friends = ({ token }) => {
         }
     }, []);
 
-    // Handle rejecting a friend request
     const handleRejectRequest = useCallback(async (requestId, token) => {
         if (!requestId || !token) return;
         try {
@@ -61,10 +60,6 @@ const Friends = ({ token }) => {
             console.error('Error rejecting friend request:', error);
         }
     }, []);
-
-
-    console.log('userProfile : ', userProfile)
-    console.log(friendname);
 
     // Handle searching for friends by username
     const handleSearch = async () => {
@@ -85,6 +80,8 @@ const Friends = ({ token }) => {
 
     // Handle sending a friend request
     const handleSendFriendRequest = async (friendId, token) => {
+        console.log('token',token);
+        console.log('friendId', friendId);
         const friend = friends.find((friend) => friend._id === friendId);
         if (!friend) return;
 
@@ -103,14 +100,23 @@ const Friends = ({ token }) => {
             alert('Friend request sent successfully!');
 
             // Update the friends list to remove the user after sending the request
-            setFriends((prev) => prev.filter((friend) => friend._id !== friendId));
+            // setFriends(
+            //     (prevFriends) => prevFriends.filter((friend) => friend._id !== friendId)
+            // );
+            setFriends((prevFriends) => {
+                return prevFriends.map((friend) => {
+                    if (friend._id === friendId) {
+                        return { ...friend, requestSent: true }; // Add a 'requestSent' flag
+                    }
+                    return friend;
+                });
+            });
         } catch (error) {
             console.error('Failed to send friend request:', error);
             alert('Failed to send friend request. Please try again.');
         }
     };
 
-    // Fetch user profile, friends list, and friend requests
     useEffect(() => {
         if (!userId || !token) return;
 
@@ -122,10 +128,10 @@ const Friends = ({ token }) => {
                 ]);
 
                 setAlreadyFriends(friendsList);
-                setFriends(friendsList); // Initialize friends with alreadyFriends
+                setFriends(friendsList);
                 setUserProfile(user);
+                setNotifications(user.notifications || []);
 
-                // Process friend requests
                 if (user.friendRequests && user.friendRequests.length > 0) {
                     const formattedRequests = user.friendRequests.map((request) => ({
                         senderId: request.userId.toString(),
@@ -147,27 +153,25 @@ const Friends = ({ token }) => {
         fetchData();
     }, [token, userId]);
 
+    console.log('Notifications : ',Notifications)
+
     if (loading) {
-        return <div>Loading...</div>; // Display a loading message
+        return <div>Loading...</div>;
     }
 
     if (error) {
-        return <div>Error: {error.message}</div>; // Display an error message
+        return <div>Error: {error.message}</div>;
     }
-
 
     return (
         <>
-            {/* Header Section */}
             <div className='text-center mb-3 md:mb-8'>
-                <div className='flex items-center justify-between md:mt-6 px-4 md:px-8'> {/* Changed to justify-between */}
-                    {/* Heading with Gradient and Animation - Centered */}
-                    <div className="flex-grow pt-3 md:pt-0"> {/* Takes up available space */}
+                <div className='flex items-center justify-between md:mt-6 px-4 md:px-8'>
+                    <div className="flex-grow pt-3 md:pt-0">
                         <h2 className='text-center text-2xl md:text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent animate-gradient mx-auto'>
                             Find Your Friends <span className='ml-3 animate-bounce'>👥</span>
                         </h2>
                     </div>
-                    {/* Home Button with Hover Effect - Left Aligned */}
                     <Link
                         to='/'
                         className='bg-gradient-to-r from-blue-500 to-purple-600 text-white px-3 md:px-4 py-2 rounded-full hover:from-purple-600 hover:to-blue-500 transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105'
@@ -188,19 +192,13 @@ const Friends = ({ token }) => {
                         </svg>
                         <span className='text-sm md:text-base'>Home</span>
                     </Link>
-                    
-
-
                 </div>
                 <p className='text-gray-500 mt-2 mx-auto'>
                     Connect with friends using their unique ID
                 </p>
             </div>
 
-
-            {/* Main container with flexbox for side panel layout */}
             <div className="max-w-7xl mx-auto px-2 md:py-8 py-0 flex flex-col md:flex-row">
-                {/* Main Content */}
                 <div className={friendRequests.length > 0 ? "md:w-3/4" : "w-full"}>
                     <div className='flex flex-col items-center gap-4 md:mb-12'>
                         <div className='w-full max-w-2xl relative'>
@@ -302,7 +300,7 @@ const Friends = ({ token }) => {
                                                     <p className="text-xs text-gray-500">Friend Request Sent</p>
                                                 </div>
                                             ) : (
-                                                <button onClick={() => handleSendFriendRequest(friend._id)} className="w-full py-2 bg-green-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-300 flex items-center justify-center gap-2">
+                                                <button onClick={() => handleSendFriendRequest(friend._id, token)} className="w-full py-2 bg-green-500 text-white rounded-lg hover:bg-blue-600 transition-colors duration-300 flex items-center justify-center gap-2">
                                                     Add Friend
                                                 </button>
                                             )}
@@ -315,68 +313,19 @@ const Friends = ({ token }) => {
                     </div>
                 </div>
 
-                {/* Right Side: Friend Requests Panel (Conditional Rendering) */}
-                {friendRequests.length > 0 && ( // Only render if there are friend requests
-                    <div className="md:w-1/3 md:pl-8 mt-8 md:mt-0"> {/* Added padding and margin for spacing */}
-                        <div className='text-center py-12 px-6 bg-white rounded-2xl shadow-lg hover:shadow-md transition-shadow duration-300'>
-                            <h2 className='text-3xl font-bold text-purple-700 mb-4'>Friend Requests</h2>
-                            <div className='space-y-2'>
-                                {friendRequests.map((request) => (
-                                    // console.log(request),
-                                    <div
-                                        key={request.senderId} // Use userId as unique key
-                                        className="bg-white p-4 rounded-lg shadow-md mb-4 last:mb-0"
-                                    >
-                                        <div className="flex items-center gap-4 mb-4">
-                                            {/* User Avatar */}
-                                            <div className="flex-shrink-0">
-                                                <FaRegUser className="size-16 text-gray-400" />
-                                            </div>
-
-                                            {/* User Info */}
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-lg font-medium text-gray-800 truncate">
-                                                    {request.username || 'Unknown User'}
-                                                </p>
-                                                <p className="text-sm text-gray-500 truncate">
-                                                    ID: {request.senderId}.. {/* Truncated user ID */}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        {/* Action Buttons */}
-                                        <div className="flex gap-2 justify-end">
-                                            <button
-                                                onClick={() => handleRejectRequest(request.senderId, token)}
-                                                className="w-[50%] px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors duration-200"
-                                            >
-                                                Reject
-                                            </button>
-                                            <button
-                                                onClick={() => handleAcceptRequest(request.senderId, token)}
-                                                className="w-[50%] px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                                            >
-                                                Accept
-                                            </button>
-                                        </div>
-
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
+                {/* Notifications and Friend Requests */}
+                {notifications.length > 0 && <Notifications notifications={notifications} />}
+                {friendRequests.length > 0 && (
+                    <FriendRequests
+                        friendRequests={friendRequests}
+                        handleAcceptRequest={handleAcceptRequest}
+                        handleRejectRequest={handleRejectRequest}
+                        token={token}
+                    />
                 )}
-
-
             </div>
-
         </>
     );
 };
 
 export default Friends;
-
-
-
-
-
-

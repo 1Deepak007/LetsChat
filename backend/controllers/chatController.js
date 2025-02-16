@@ -5,57 +5,41 @@ const mongoose = require("mongoose");
 module.exports = (io) => {
   // Fetch chat messages
   const getMessages = async (req, res) => {
-    const { sender, receiver } = req.query; // Use ONLY req.query
-
     try {
-      const senderId = new mongoose.Types.ObjectId(sender);
-      const receiverId = new mongoose.Types.ObjectId(receiver);
-
-      const [senderUser, receiverUser] = await Promise.all([
-        User.findById(senderId),
-        User.findById(receiverId),
-      ]);
-
-      if (!senderUser || !receiverUser) {
-        return res
-          .status(404)
-          .json({ message: "Sender or receiver user not found" });
+      const senderId = req.body.senderId; // Sender from request body
+      const receiverId = req.body.receiverId; // Receiver from request body
+  
+      // Validate IDs (ensure both are valid MongoDB ObjectId)
+      if (
+        !mongoose.Types.ObjectId.isValid(senderId) ||
+        !mongoose.Types.ObjectId.isValid(receiverId)
+      ) {
+        return res.status(400).json({ message: "Invalid user ID format" });
       }
-
-      const isFriend =
-        senderUser.friends.some(
-          (friend) => friend.userId.toString() === receiver
-        ) &&
-        receiverUser.friends.some(
-          (friend) => friend.userId.toString() === sender
-        );
-
-      if (!isFriend) {
-        return res
-          .status(403)
-          .json({ message: "You are not friends with this user" });
-      }
-
+  
+      // Convert to ObjectId
+      const senderObjId = new mongoose.Types.ObjectId(senderId);
+      const receiverObjId = new mongoose.Types.ObjectId(receiverId);
+  
+      // Fetch messages
       const messages = await Message.find({
         $or: [
-          { sender: senderId, receiver: receiverId },
-          { sender: receiverId, receiver: senderId },
+          { sender: senderObjId, receiver: receiverObjId },
+          { sender: receiverObjId, receiver: senderObjId },
         ],
         isDeleted: false,
       })
-        .sort({ timestamp: 1 })
+        .sort({ timestamp: 1 }) // Sort by timestamp (ascending order)
         .lean();
-
-      if (messages.length === 0) {
-        return res.json({ message: "Conversation empty" });
-      }
-
-      res.json(messages);
+  
+      // Return all messages sorted by timestamp
+      res.status(200).json(messages);
     } catch (err) {
-      console.error("Error in getMessages:", err);
+      console.error("Error fetching conversation:", err);
       res.status(500).json({ message: `Server error: ${err.message}` });
     }
   };
+  
 
   // Send message and emit real-time event
   const sendMessage = async (req, res) => {
@@ -147,6 +131,7 @@ module.exports = (io) => {
   };
 
   // soft deletion : i am not actually deleting the message but turning it to isDeleted = true, which will soft delete the message.
+  // senderId , senderJWT
   const deleteMessage = async (req, res) => {
     const { messageId, userId } = req.body; // Add userId to validate sender
 
