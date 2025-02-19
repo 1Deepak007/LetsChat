@@ -1,33 +1,90 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 
-const userSchema = new mongoose.Schema({
-  username: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true,
+const userSchema = new mongoose.Schema(
+  {
+    firstname: {
+      type: String,
+      required: true,
+    },
+    lastname: {
+      type: String,
+      default: "",
+    },
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+    },
+    password: {
+      type: String,
+      required: true,
+    },
+    profilePicture: {
+      type: String,
+      default: "",
+    },
+    friends: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+    friendRequests: [
+      {
+        userId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+          require: true,
+        },
+        username: {
+          type: String,
+          requires: true,
+        },
+      },
+    ],
+    notifications: [
+      {
+        notificationType: {
+          type: String,
+          enum: ["friend_request", "message", "system"],
+          required: true,
+        },
+        message: String,
+        timestamp: { type: Date, default: Date.now },
+      },
+    ],
+    currentLocation: {
+      type: String,
+      default: "", // Or you could use a GeoJSON point for more precise location
+    },
+    hometown: {
+      type: String,
+      default: "",
+    },
+    profession: {
+      type: String,
+      default: "",
+    },
+    hobbies: {
+      type: [String], // Array of hobbies (good for multiple entries)
+      default: [],
+    },
+    favoritePlaces: {
+      type: [String], // Array of favorite places
+      default: [],
+    },
+    bio: {
+      // Optional: Add a bio field
+      type: String,
+      default: "",
+    },
   },
-  password: {
-    type: String,
-    required: true,
-  },
-  profilePicture: String, // Path to the profile picture
-  friends: [{
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    username: String,
-    profilePicture: String,
-  }],
-  friendRequests: [{
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    username: String,
-    _id: { type: mongoose.Schema.Types.ObjectId, default: mongoose.Types.ObjectId },
-  }],
-  notifications: [{
-    message: String,
-    timestamp: { type: Date, default: Date.now },
-  }],
-});
+  { timestamps: true }
+);
+
+userSchema.index({ username: 1 });
 
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();

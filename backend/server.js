@@ -143,6 +143,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/chat", authenticateJWT, chatRoutes);
 app.use("/api/friends", authenticateJWT, friendRoutes);
 app.use("/api/profile", authenticateJWT, profileRoutes);
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
 
 server.listen(5000, () => {
   console.log("Server running on port 5000");

@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
 const Signup = () => {
+    const [firstname, setFirstname] = useState('');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [errorMessage, setErrorMessage] = useState(null); // State for error message
@@ -10,8 +11,9 @@ const Signup = () => {
 
     const signup = async () => {
         try {
-            console.log(username, ':', password);
+            console.log(firstname,':',username, ':', password);
             const response = await axios.post('http://localhost:5000/api/auth/signup', {
+                firstname,
                 username,
                 password,
             });
@@ -43,6 +45,14 @@ const Signup = () => {
                 <div className='bg-gray-400 p-5 rounded-lg w-full max-w-[400px] bg-opacity-70'>
                     <h1 className="text-4xl font-bold text-gray-800 mb-6">Sign Up</h1>
 
+                    <input
+                        type="text"
+                        value={firstname}
+                        onChange={(e) => setFirstname(e.target.value)}
+                        placeholder="Firstname"
+                        className="w-full max-w-[300px] px-4 py-3 mb-4 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+                    />
+                    
                     <input
                         type="text"
                         value={username}

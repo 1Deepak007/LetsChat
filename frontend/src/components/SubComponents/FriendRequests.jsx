@@ -1,53 +1,47 @@
-import React from 'react';
-import { FaRegUser } from "react-icons/fa";
+import React from "react";
 
 const FriendRequests = ({ friendRequests, handleAcceptRequest, handleRejectRequest, token }) => {
+
+
+    console.log(friendRequests)
+
+    const accept=(senderId , token)=>{
+        console.log(senderId)
+        console.log(token)
+        handleAcceptRequest(senderId, token)
+    }
     return (
-        <div className="md:w-1/4 md:pl-8 mt-8 md:mt-0">
-            <div className='text-center py-12 px-6 bg-white rounded-2xl shadow-lg hover:shadow-md transition-shadow duration-300'>
-                <h2 className='text-3xl font-bold text-purple-700 mb-4'>Friend Requests</h2>
-                <div className='space-y-2'>
-                    {friendRequests.length > 0 ? (
-                        friendRequests.map((request) => (
-                            <div
-                                key={request.senderId}
-                                className="bg-white p-4 rounded-lg shadow-md mb-4 last:mb-0"
+        <ul className="list-none p-0">
+            {friendRequests.map((request) => (
+                <li key={request._id} className="bg-white border border-gray-200 rounded-md p-3 mb-2 shadow flex items-center justify-between">
+                    <div>
+                        <div className="flex-grow">
+                            <p className="text-sm text-gray-700">
+                                {request.username} sent you a friend request.
+                            </p>
+                        </div>
+                        <div className="flex space-x-2 mt-2">
+                            <button
+                                // onClick={() => handleAcceptRequest(request._id, token)}
+                                onClick={() => accept(request.senderId, token)}
+                                className="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-2 rounded text-xs"
                             >
-                                <div className="flex items-center gap-4 mb-4">
-                                    <div className="flex-shrink-0">
-                                        <FaRegUser className="size-16 text-gray-400" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-lg font-medium text-gray-800 truncate">
-                                            {request.username || 'Unknown User'}
-                                        </p>
-                                        <p className="text-sm text-gray-500 truncate">
-                                            ID: {request.senderId}..
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2 justify-end">
-                                    <button
-                                        onClick={() => handleRejectRequest(request.senderId, token)}
-                                        className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors duration-200"
-                                    >
-                                        Reject
-                                    </button>
-                                    <button
-                                        onClick={() => handleAcceptRequest(request.senderId, token)}
-                                        className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors duration-200"
-                                    >
-                                        Accept
-                                    </button>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <p className="text-gray-500">No new friend requests</p>
-                    )}
-                </div>
-            </div>
-        </div>
+                                Accept
+                            </button>
+                            <button
+                                onClick={() => handleRejectRequest(request._id, token)}
+                                className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs"
+                            >
+                                Reject
+                            </button>
+                        </div>
+                    </div>
+                </li>
+            ))}
+            {friendRequests.length === 0 && (
+                <p className="text-gray-500">No friend requests.</p>
+            )}
+        </ul>
     );
 };
 

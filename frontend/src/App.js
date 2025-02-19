@@ -6,6 +6,7 @@ import Home from './components/Home.jsx';
 import Friends from './components/Friends.jsx';
 import './App.css';
 import Signup from './components/Signup.jsx';
+import Profile from './components/Profile.jsx';
 
 // Function to check if the token is expired
 const isTokenExpired = (token) => {
@@ -66,12 +67,18 @@ function App() {
         />
 
 
-        <Route path="/friends" element={
+        <Route path="/friends/:_id?" element={
           <PrivateRoute>
             <Friends token={token} />
           </PrivateRoute>
         }
         />
+
+        <Route path='/profile' element={
+          <PrivateRoute>
+            <Profile token={token} />
+          </PrivateRoute>
+        }/>
 
         {/* 404 Page Not Found */}
         <Route path="*" element={<h1>Page not found</h1>} />

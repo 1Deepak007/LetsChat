@@ -1,7 +1,6 @@
 import axios from "axios";
 import { jwtDecode } from "jwt-decode";
 
-
 // Validate token
 export const isTokenValid = (token) => {
   try {
@@ -13,32 +12,34 @@ export const isTokenValid = (token) => {
 };
 
 export const fetchFriendsList = async (userId, token) => {
-    try {
-      const response = await axios.get(
-        `http://localhost:5000/api/friends/get-friends/${userId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      console.log(response);
-  
-      // Check if response data is an array
-      if (!Array.isArray(response.data)) {
-        console.error("Invalid response format: expected an array");
-        return [];
+  try {
+    const response = await axios.get(
+      `http://localhost:5000/api/friends/get-friends/${userId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
       }
-  
-      // Transform response to match expected format
-      return response.data.map((friend) => ({
-        _id: friend.userId, // Use _id for consistency
-        userId: friend.userId,
-        username: friend.username,
-      }));
-    } catch (error) {
-      console.error("Error fetching friends:", error);
+    );
+    console.log(response);
+
+    // Check if response data is an array
+    if (!Array.isArray(response.data)) {
+      console.error("Invalid response format: expected an array");
       return [];
     }
-  };
+
+    // Transform response to match expected format
+    return response.data.map((friend) => ({
+      _id: friend._id, // Use _id from the API response
+      firstname: friend.firstname,
+      lastname: friend.lastname,
+      username: friend.username,
+      profilePicture: friend.profilePicture,
+    }));
+  } catch (error) {
+    console.error("Error fetching friends:", error);
+    return [];
+  }
+};
 
 export const fetchFriendByUsername = async (friendname, token) => {
   try {
@@ -71,16 +72,16 @@ export const fetchFriendByUsername = async (friendname, token) => {
 
 // Send friend request
 export const sendFriendRequest = async (friendId, token) => {
+  console.log(friendId, token);
   try {
     const response = await axios.post(
       `http://localhost:5000/api/friends/send-request/${friendId}`,
-      {},
+      {}, // Empty body (if no data is required)
       {
         headers: { Authorization: `Bearer ${token}` },
       }
     );
 
-    console.log(friendId, token);
     console.log("Friend request sent:", response);
     return response.data;
   } catch (error) {
@@ -105,10 +106,10 @@ export const getUserProfile = async (userId, token) => {
   }
 };
 
-export const acceptFriendRequest = async (requestId, token) => {
+export const acceptFriendRequest = async (senderId, token) => {
   try {
     const response = await axios.post(
-      `http://localhost:5000/api/friends/accept-request/${requestId}`,
+      `http://localhost:5000/api/friends/accept-request/${senderId}`,
       null,
       { headers: { Authorization: `Bearer ${token}` } }
     );
@@ -130,5 +131,19 @@ export const rejectFriendRequest = async (requestId, token) => {
   } catch (error) {
     console.error(`Error rejecting request. ${error}`);
     throw error;
+  }
+};
+
+export const unfriend = async (_id, token) => {
+  console.log("_id : ", _id);
+  console.log("token : ", token);
+  try {
+    const response = await axios.delete(
+      `http://localhost:5000/api/friends/unfriend/${_id}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return response;
+  } catch (error) {
+    console.error(`Error : unable to unfriend. ${error}`);
   }
 };

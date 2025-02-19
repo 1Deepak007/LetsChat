@@ -1,6 +1,6 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
-const { ObjectId } = require("mongodb");
+const upload = require("../middleware/upload");
 
 // get user profile
 exports.getUserProfile = async (req, res) => {
@@ -18,23 +18,60 @@ exports.getUserProfile = async (req, res) => {
   }
 };
 
-// update user's profile
-exports.updateUserProfile = async (req, res) => {
-    try {
-      const { username } = req.body;
-      const updateData = { username };
-  
-      if (req.file) {
-        updateData.profilePicture = req.file.path; // Or req.file.filename if you prefer
-      }
-  
-      const user = await User.findByIdAndUpdate(req.user.id, updateData, { new: true }).select('-password');
-      res.json({ message: 'Profile updated successfully', user });
-    } catch (err) {
-      console.error("Update profile error:", err); // Improved error logging
-      res.status(500).json({ message: 'Server error', error: err.message });
+// Update user's profile picture ONLY
+exports.updateProfilePicture = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No profile picture uploaded" }); // Important check
     }
-  };
+
+    const updateData = { profilePicture: req.file.path };
+
+    const user = await User.findByIdAndUpdate(req.user.id, updateData, {
+      new: true,
+    }).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json({ message: "Profile picture updated successfully", user });
+  } catch (err) {
+    console.error("Update profile picture error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+// Update user's profile (excluding profile picture)
+exports.updateUserProfile = async (req, res) => {
+  try {
+    const {
+      username,
+      currentLocation,
+      hometown,
+      profession,
+      hobbies,
+      favoritePlaces,
+      bio,
+    } = req.body; // Get all the new fields from the request body
+    const updateData = {
+      firstname,
+      lastname,
+      username,
+      currentLocation,
+      hometown,
+      profession,
+      hobbies,
+      favoritePlaces,
+      bio,
+    };
+
+    const user = await User.findByIdAndUpdate(req.user.id, updateData, {
+      new: true,
+    }).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+    res.json({ message: "Profile updated successfully", user });
+  } catch (err) {
+    console.error("Update profile error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
 
 // change password
 exports.changePassword = async (req, res) => {
@@ -64,66 +101,70 @@ exports.changePassword = async (req, res) => {
 };
 
 exports.unfriend = async (req, res) => {
-    try {
-      const { friendId } = req.params;
-      const userId = req.user.id;
-  
-      // Use MongoDB's $pull operator to efficiently remove the friend
-      await User.findByIdAndUpdate(userId, { $pull: { friends: { userId: friendId } } });
-      await User.findByIdAndUpdate(friendId, { $pull: { friends: { userId: userId } } });
-  
-  
-      res.json({ message: 'User unfriended successfully' });
-    } catch (err) {
-      res.status(500).json({ message: 'Server error', error: err.message });
+  try {
+    const { friendId } = req.params;
+    const userId = req.user.id;
+
+    // Use MongoDB's $pull operator to efficiently remove the friend
+    await User.findByIdAndUpdate(userId, {
+      $pull: { friends: { userId: friendId } },
+    });
+    await User.findByIdAndUpdate(friendId, {
+      $pull: { friends: { userId: userId } },
+    });
+
+    res.json({ message: "User unfriended successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+exports.rejectFriendRequest = async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const userId = req.user.id; // User rejecting the request
+
+    const receiver = await User.findById(userId);
+    if (!receiver) {
+      return res.status(404).json({ message: "Receiver not found" });
     }
-  };
-  
-  
-  exports.rejectFriendRequest = async (req, res) => {
-    try {
-      const { requestId } = req.params;
-      const userId = req.user.id; // User rejecting the request
-  
-      const receiver = await User.findById(userId);
-      if (!receiver) {
-        return res.status(404).json({ message: "Receiver not found" });
-      }
-  
-      const request = receiver.friendRequests.find(req => req._id.toString() === requestId);
-      if (!request) {
-        return res.status(404).json({ message: "Request not found" });
-      }
-  
-      const senderId = request.userId; // ID of the user who sent the request
-      const sender = await User.findById(senderId);
-      if (!sender) {
-        return res.status(404).json({ message: "Sender not found" });
-      }
-  
-  
-      // 1. Remove request from receiver's friendRequests
-      receiver.friendRequests = receiver.friendRequests.filter(req => req._id.toString() !== requestId);
-      await receiver.save();
-  
-      // 2. Send notification to the sender
-      sender.notifications.push({
-        message: `${receiver.username} rejected your friend request.`,
-        type: 'friendRequestRejected', // Add a type for easier handling on the frontend
-        relatedUserId: receiver._id,    // Include the receiver's ID
-      });
-      await sender.save();
-  
-      // Emit socket.io event for real-time update (Important!)
-      io.to(senderId).emit('friendRequestRejected', {
-        message: `${receiver.username} rejected your friend request.`,
-        relatedUserId: receiver._id,
-      });
-  
-      res.json({ message: 'Friend request rejected' });
-    } catch (err) {
-      console.error("Reject request error:", err);
-      res.status(500).json({ message: 'Server error', error: err.message });
+
+    const request = receiver.friendRequests.find(
+      (req) => req._id.toString() === requestId
+    );
+    if (!request) {
+      return res.status(404).json({ message: "Request not found" });
     }
-  };
-  
+
+    const senderId = request.userId; // ID of the user who sent the request
+    const sender = await User.findById(senderId);
+    if (!sender) {
+      return res.status(404).json({ message: "Sender not found" });
+    }
+
+    // 1. Remove request from receiver's friendRequests
+    receiver.friendRequests = receiver.friendRequests.filter(
+      (req) => req._id.toString() !== requestId
+    );
+    await receiver.save();
+
+    // 2. Send notification to the sender
+    sender.notifications.push({
+      message: `${receiver.username} rejected your friend request.`,
+      type: "friendRequestRejected", // Add a type for easier handling on the frontend
+      relatedUserId: receiver._id, // Include the receiver's ID
+    });
+    await sender.save();
+
+    // Emit socket.io event for real-time update (Important!)
+    io.to(senderId).emit("friendRequestRejected", {
+      message: `${receiver.username} rejected your friend request.`,
+      relatedUserId: receiver._id,
+    });
+
+    res.json({ message: "Friend request rejected" });
+  } catch (err) {
+    console.error("Reject request error:", err);
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};

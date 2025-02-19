@@ -4,18 +4,26 @@ const bcrypt = require('bcrypt')
 const redisClient = require('../utils/redis');
 
 exports.register = async (req, res) => {
-    const { username, password } = req.body;
+    const { firstname, lastname, username, password } = req.body; // Include lastName
     try {
         let user = await User.findOne({ username });
         if (user) return res.status(400).json({ message: 'Username already exists.' });
-        user = await User.create({ username, password });
-        res.status(201).json({ message: 'User created. ', user })
-    } catch (err) {
-        // console.error(err);
-        res.status(500).json({ message: 'Server error' });
-    }
-}
 
+        const newUser = new User({  // Create a new User instance
+            firstname,              
+            lastname,              
+            username,
+            password
+        });
+
+        await newUser.save();     // This is CRUCIAL!  It triggers the pre('save') middleware and hashes the password
+        res.status(201).json({ message: 'User created.', user: newUser }); // Send back the newly created user (excluding password)
+
+    } catch (err) {
+        console.error(err); // Improved error logging
+        res.status(500).json({ message: 'Server error', error: err.message }); // Send more specific error message
+    }
+};
 exports.login = async (req, res) => {
     const { username, password } = req.body;
 

@@ -11,8 +11,13 @@ import { FaUserCircle } from "react-icons/fa";
 import { LuMessageCircleMore } from "react-icons/lu";
 import Empty_message from '../assets/icons/Empty_message.gif';
 import { RxCross2 } from "react-icons/rx";
+import { MdModeEdit } from "react-icons/md";
 
 const Home = ({ token, setToken }) => {
+
+    const { _id } = useParams();
+    // console.log('_id : ', _id);
+
     const [message, setMessage] = useState("");
     const [friends, setFriends] = useState([]);
     const [messages, setMessages] = useState([]);
@@ -20,28 +25,120 @@ const Home = ({ token, setToken }) => {
     const [error, setError] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
     const [selectedFrndId, setSelectedFrndId] = useState("");
-    const [currentUserId, setCurrentUserId] = useState(null);
     const [socket, setSocket] = useState(null);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-
-    // message
     const [selectedMessages, setSelectedMessages] = useState([]);
-    const [selectedMessage, setSelectedMessage] = useState(null);
     const [isContextMenuOpen, setIsContextMenuOpen] = useState(false);
+    const [editingMessage, setEditingMessage] = useState(null);
+const [editContent, setEditContent] = useState("");
     const contextMenuRef = useRef(null);
     const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
-
+    const emojiPickerRef = useRef(null);
 
     const decodedToken = jwtDecode(token);
+    const currentUserId = decodedToken.id;
 
-    const { _id } = useParams();
 
     useEffect(() => {
-        if (_id && currentUserId) {
-            setSelectedFrndId(_id);
-            fetchMessages(currentUserId, _id);
+        const fetchData = async () => {
+            await fetchMessages(_id, currentUserId);
+        };
+
+        setSelectedFrndId(_id);
+
+        if (_id) {
+            fetchData();
         }
     }, [_id, currentUserId]);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            if (selectedFrndId) {
+                await fetchMessages(currentUserId, selectedFrndId);
+            } else if (_id) {
+                await fetchMessages(currentUserId, _id);
+            }
+        };
+
+        fetchData();
+    }, [selectedFrndId, _id, currentUserId]);
+
+    // Fetch user profile and friends
+    useEffect(() => {
+        if (!token || !isTokenValid(token)) return;
+
+        const fetchData = async () => {
+            await fetchUserProfile(currentUserId);
+            await fetchFriends(currentUserId);
+        };
+
+        fetchData();
+    }, [token, currentUserId]);
+
+    // Fetch messages when a friend is selected
+    useEffect(() => {
+        if (selectedFrndId) {
+            fetchMessages(currentUserId, selectedFrndId);
+        }
+        if (_id) {
+            fetchMessages(currentUserId, _id)
+        }
+    }, [selectedFrndId, currentUserId, _id]);
+
+    // Initialize Socket Connection
+    useEffect(() => {
+        if (!token) return;
+
+        const newSocket = io("http://localhost:5000", {
+            transports: ["websocket", "polling"],
+            withCredentials: true,
+            auth: { token },
+        });
+
+        setSocket(newSocket);
+
+        newSocket.on("connect", () => {
+            console.log("Connected to socket.io server");
+        });
+
+        newSocket.on("newMessage", (newMessage) => {
+            if (
+                (newMessage.sender === selectedFrndId && newMessage.receiver === currentUserId) ||
+                (newMessage.sender === currentUserId && newMessage.receiver === selectedFrndId)
+            ) {
+                setMessages((prev) => [...prev, newMessage]);
+            }
+        });
+
+        return () => {
+            newSocket.off("newMessage");
+            newSocket.disconnect();
+        };
+    }, [token, selectedFrndId, currentUserId]);
+
+    // Handle clicks outside the emoji picker
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
+                setShowEmojiPicker(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    // Handle clicks outside the context menu
+    useEffect(() => {
+        const handleClick = (e) => {
+            if (contextMenuRef.current && !contextMenuRef.current.contains(e.target)) {
+                setIsContextMenuOpen(false);
+            }
+        };
+
+        document.addEventListener("click", handleClick);
+        return () => document.removeEventListener("click", handleClick);
+    }, []);
 
     const isTokenValid = (token) => {
         try {
@@ -53,16 +150,11 @@ const Home = ({ token, setToken }) => {
     };
 
     const fetchUserProfile = async (userId) => {
-        if (!token || !isTokenValid(token)) {
-            console.error("Token is missing or expired.");
-            return;
-        }
-
         try {
             const response = await axios.get(`http://localhost:5000/api/profile/${userId}`, {
                 headers: { Authorization: `Bearer ${token}` },
             });
-            setCurrentUser({ ...response.data, password: '**********' });
+            setCurrentUser({ ...response.data, password: "**********" });
         } catch (error) {
             console.error("Error fetching user data:", error);
         }
@@ -83,239 +175,172 @@ const Home = ({ token, setToken }) => {
         }
     };
 
-    const fetchMessages = async (userId, selectedFrndId) => {
-        if (!selectedFrndId) return;
-
-        console.log("Fetching messages between:", userId, "and", selectedFrndId);
+    const fetchMessages = async (userId, friendId) => {
         setIsLoading(true);
-
-        const token = localStorage.getItem("token");
-        if (!token) {
-            console.error("No authentication token found.");
-            setError("Authentication required. Please log in again.");
-            setIsLoading(false);
-            return;
-        }
-
         try {
             const response = await axios.post(
-                `http://localhost:5000/api/chat/messages/`,
-                { senderId: userId, receiverId: selectedFrndId }, // sending data in body (req.body)
+                `http://localhost:5000/api/chat/messages`,
+                { senderId: userId, receiverId: friendId },
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-
             setMessages(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
-            console.error(`Error fetching messages: ${error.response?.data?.message || error.message}`);
+            console.error("Error fetching messages:", error);
             setError(`Unable to get messages: ${error.response?.data?.message || error.message}`);
+            setMessages([]); // Reset messages on error
         } finally {
             setIsLoading(false);
         }
     };
 
-
     const handleSelectFriend = (e) => {
         const friendId = e.target.value;
-        console.log('friendId : ', friendId);
         setSelectedFrndId(friendId);
     };
 
-    // Send Message
     const sendMessage = async () => {
         if (!message.trim() || !selectedFrndId) return;
 
+        // console.log(currentUserId, ",", selectedFrndId, ",", message)
+
         const newMessage = {
-            content: message,
-            sender: decodedToken.id,  // Ensure correct user ID
+            sender: currentUserId,
             receiver: selectedFrndId,
-            // timestamp: new Date().toISOString()
+            content: message,
+            messageType: "text"
         };
 
-
         try {
-            await axios.post('http://localhost:5000/api/chat/sendmessage', newMessage, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await axios.post(
+                "http://localhost:5000/api/chat/sendmessage",
+                newMessage,
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
 
-            // Optimistically update UI
-            setMessages(prev => [...prev, newMessage]);
+            setMessages((prev) => [...prev, response.data]); // Use response data for consistency
             setMessage("");
 
-            // Emit via socket.io
-            socket.emit("send_message", newMessage);
+            if (socket) {
+                socket.emit("send_message", response.data);
+            }
         } catch (error) {
             console.error("Error sending message:", error);
         }
     };
 
     const handleDeleteMessages = async () => {
-        if (selectedMessages.length === 0) {
-            alert("No messages selected to delete.");
-            return;
-        }
+        if (selectedMessages.length === 0) return;
+
+        const confirmed = window.confirm("Delete this message?");
+        if (!confirmed) return;
 
         setIsLoading(true);
         try {
-            const token = localStorage.getItem("token");
-            if (!token) {
-                throw new Error("No token found");
-            }
-
             const deletePromises = selectedMessages.map(async (messageId) => {
-                await axios.delete('http://localhost:5000/api/chat/deletemessage', {
+                await axios.delete("http://localhost:5000/api/chat/deletemessage", {
                     headers: { Authorization: `Bearer ${token}` },
-                    data: { messageId, userId: currentUserId },
+                    data: { messageId, senderId: currentUserId },
                 });
             });
 
-            await Promise.all(deletePromises); // Wait for all delete requests to complete
-
+            await Promise.all(deletePromises);
             setMessages(messages.filter((msg) => !selectedMessages.includes(msg._id)));
-            setSelectedMessages([]);  // Clear selected messages
+            setSelectedMessages([]);
+
             if (socket) {
-                selectedMessages.forEach(messageId => {
-                    socket.emit('messageDeleted', messageId);
-                })
+                selectedMessages.forEach((messageId) => {
+                    socket.emit("messageDeleted", messageId);
+                });
             }
-
-
         } catch (error) {
             console.error("Error deleting messages:", error);
-
-            if (axios.isAxiosError(error)) {
-                if (error.response) {
-                    // *** KEY CHANGE HERE ***
-                    const errorMessage = error.response.data.message || "An error occurred"; // Extract the message
-                    setError(errorMessage);  // Set the extracted message
-
-                } else if (error.request) {
-                    setError("No response from server.");
-                } else {
-                    setError(error.message || "An error occurred");
-                }
-            } else {
-                setError(error.message || "An error occurred");
-            }
+            setError(error.response?.data?.message || "An error occurred");
         } finally {
             setIsLoading(false);
         }
     };
 
-    useEffect(() => {
-        if (selectedFrndId && currentUserId) {
-            fetchMessages(currentUserId, selectedFrndId);
+    const handleEditClick = (msg) => {
+        setEditingMessage(msg);
+        setEditContent(msg.content);
+    };
+    
+    const handleSaveEdit = async () => {
+        if (editingMessage) {
+            await handleEditMessage(editingMessage, editContent);
+            setEditingMessage(null);
+            setEditContent("");
         }
-    }, [selectedFrndId, currentUserId]);
+    };
+    
+    const handleEditMessage = async (msg, newContent) => {
+        try {
+            const response = await axios.put("http://localhost:5000/api/chat/editmessage", {
+                messageId: msg._id,  // Assuming msg has _id. If not, use msg?._id with optional chaining
+                newContent: newContent,
+                userId: currentUserId // Or get userId from wherever it's stored (e.g., localStorage, context)
+            }, {
+                headers: { Authorization: `Bearer ${token}` } // If you're using JWT authentication
+            });
+    
+            // Update the message in the state
+            setMessages(prevMessages => {
+                return prevMessages.map(m => {
+                    if (m._id === msg._id) {
+                        return { ...m, content: newContent, updatedAt: response.data.data.updatedAt, isEdited: true, lastEditedAt: response.data.data.lastEditedAt }; // Update content and other relevant fields
+                    }
+                    return m;
+                });
+            });
+    
+            // Emit socket.io event (if needed)
+            if (socket) {
+                socket.emit("messageEdited", response.data.data); // Emit the updated message data
+            }
+    
+            // console.log("Message updated:", response.data);
+    
+        } catch (error) {
+            console.error("Error editing message:", error);
+            // Handle error (e.g., display error message to the user)
+            setError(error.response?.data?.message || "An error occurred while editing the message.");
+        }
+    };
+
+    const handleCancelEdit = () => {
+        setEditingMessage(null);
+        setEditContent("");
+    };
 
     const handleContextMenu = (e, msg) => {
-        e.preventDefault(); // Prevent default context menu
-        setSelectedMessages([msg._id]); // Select the message for deletion
+        e.preventDefault();
+        setSelectedMessages([msg._id]);
         setContextMenuPosition({ x: e.clientX, y: e.clientY });
         setIsContextMenuOpen(true);
     };
 
     const handleMessageClick = (msg) => {
-        if (selectedMessages.includes(msg._id)) {
-            setSelectedMessages(selectedMessages.filter((id) => id !== msg._id));
-        } else {
-            setSelectedMessages([...selectedMessages, msg._id]);
-        }
+        setSelectedMessages((prev) =>
+            prev.includes(msg._id) ? prev.filter((id) => id !== msg._id) : [...prev, msg._id]
+        );
     };
-
-
-    useEffect(() => {
-        const handleClick = (e) => {
-            if (contextMenuRef.current && !contextMenuRef.current.contains(e.target)) {
-                setIsContextMenuOpen(false);
-            }
-        };
-
-        document.addEventListener('click', handleClick);
-        return () => document.removeEventListener('click', handleClick);
-    }, []);
 
     const logout = () => {
-        setToken("")
-        localStorage.removeItem('token');
-    }
-
-    const addEmoji = (emojiObject) => {
-        setMessage(prevMessage => prevMessage + emojiObject.emoji);
+        setToken("");
+        localStorage.removeItem("token");
     };
 
-    // Initialize Socket Connection
-    useEffect(() => {
-        if (!token) {
-            console.error("No token found.");
-            return;
-        }
-
-        const newSocket = io('http://localhost:5000', {
-            transports: ['websocket', 'polling'],
-            withCredentials: true,
-            auth: { token }
-        });
-
-        setSocket(newSocket);
-
-        newSocket.on("connect", () => {
-            console.log("Connected to socket.io server");
-        });
-
-        // Listen for new messages
-        newSocket.on("newMessage", (newMessage) => {
-            if (
-                (newMessage.sender === selectedFrndId && newMessage.receiver === currentUserId) ||
-                (newMessage.sender === currentUserId && newMessage.receiver === selectedFrndId)
-            ) {
-                setMessages(prev => [...prev, newMessage]);
-            }
-        });
-
-        return () => {
-            newSocket.off("newMessage");
-            newSocket.disconnect();
-            // console.log('Socket disconnected');
-        };
-    }, [token, selectedFrndId]);
-
-    useEffect(() => {
-        if (_id) {
-            // console.log(`_id : ${_id}. current user id : ${decodedToken.id}`)
-            // setCurrentUserId(_id);
-            setSelectedFrndId(_id)
-            fetchMessages(decodedToken.id, _id);
-        }
-    }, [_id])
-
-    // Fetch User Profile & Friends
-    useEffect(() => {
-        if (!token || !isTokenValid(token)) return;
-
-        const decodedToken = jwtDecode(token);
-        setCurrentUserId(decodedToken.id);
-
-        fetchUserProfile(decodedToken.id);
-        fetchFriends(decodedToken.id);
-    }, [token]);
-
-    const emojiPickerRef = useRef(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
-                setShowEmojiPicker(false);
-            }
-        };
-
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, []);
+    const addEmoji = (emojiObject) => {
+        setMessage((prevMessage) => prevMessage + emojiObject.emoji);
+    };
 
 
-    console.log('friends : ', friends);
+    // console.log("current user id : ", currentUserId);
+    // console.log("current user : ", currentUser);
+    // console.log("selected user id : ", selectedFrndId);
+    // console.log("friends : ", friends);
+    // console.log("messages : ", messages);
+
 
     return (
         <>
@@ -330,7 +355,7 @@ const Home = ({ token, setToken }) => {
                             </div>
                             {/* Username */}
                             <h1 className="text-xs md:text-sm font-bold text-white text-center">
-                                {currentUser?.username?.toUpperCase() || "UNKNOWN USER"}
+                                {currentUser?.firstname?.toUpperCase() || "UNKNOWN USER"}
                             </h1>
                         </div>
 
@@ -342,26 +367,26 @@ const Home = ({ token, setToken }) => {
 
                         <div className="">
                             {/* Logout Button */}
-                        <button
-                            onClick={logout}
-                            className="bg-white/20 backdrop-blur-sm text-white px-2 py-1 md:px-6 md:py-3 rounded-full hover:bg-white/30 transition-all duration-300 flex items-center gap-2 shadow-md"
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                className="h-4 w-4 md:h-5 md:w-5"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                stroke="currentColor"
+                            <button
+                                onClick={logout}
+                                className="bg-white/20 backdrop-blur-sm text-white px-2 py-1 md:px-6 md:py-3 rounded-full hover:bg-white/30 transition-all duration-300 flex items-center gap-2 shadow-md"
                             >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                                />
-                            </svg>
-                            <span className="text-sm md:text-base">Logout</span>
-                        </button>
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-4 w-4 md:h-5 md:w-5"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                                    />
+                                </svg>
+                                <span className="text-sm md:text-base">Logout</span>
+                            </button>
                         </div>
                     </div>
 
@@ -385,8 +410,9 @@ const Home = ({ token, setToken }) => {
                                         >
                                             <option value="">Select a friend to chat</option>
                                             {friends.map((friend) => (
-                                                <option key={friend._id} value={friend.userId} className="py-2">
-                                                    {friend.username}
+                                                <option key={friend._id} value={friend._id} className="py-2">
+                                                    {/* {friend.username} */}
+                                                    {friend?.firstname ? friend.firstname.charAt(0).toUpperCase() + friend.firstname.slice(1) + " " + friend?.lastname : ""}
                                                 </option>
                                             ))}
                                         </select>
@@ -396,7 +422,28 @@ const Home = ({ token, setToken }) => {
                                         </span>
                                     )}
                                 </div>
-                                <div className="flex items-end justify-end w-1/2">
+
+                                <div className="flex items-end justify-end w-1/2 relative">
+                                    {/* Error and Loading States */}
+                                    <div className="flex items-center me-3">
+                                        {error && (
+                                            <div className="flex items-center bg-red-100 border border-red-400 text-red-700 px-2 py-2 rounded-lg">
+                                                <span>{error}</span>
+                                                <button onClick={() => setError(null)} className="ml-2">
+                                                    <RxCross2 className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        )}
+                                        {isLoading && (
+                                            <div className="flex items-center justify-center space-x-2 text-gray-600">
+                                                <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                                <span>Loading friends...</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    {currentUser?.notifications?.length > 0 && (
+                                        <div className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" />
+                                    )}
                                     <Link
                                         to="/friends"
                                         className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-xl hover:shadow-lg transition-all duration-300 shadow-md"
@@ -419,36 +466,15 @@ const Home = ({ token, setToken }) => {
                                 </div>
                             </div>
 
-                            <div className="space-y-2">
+                            {/* <div className="space-y-2">
                                 {currentUser?.notifications?.map((notification, index) => (
                                     <div key={index} className="text-sm text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">
                                         {notification.message}
                                     </div>
                                 ))}
+                            </div> */}
 
 
-                            </div>
-
-                            {/* Error and Loading States */}
-                            <div className="flex items-center ">
-                                {error && (
-                                    <div className="flex items-center bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded-lg">
-                                        <span>{error}</span>
-                                        <button onClick={() => setError(null)} className="ml-2">
-                                            <RxCross2 className="w-5 h-5" />
-                                        </button>
-                                    </div>
-                                )}
-                                {isLoading && (
-                                    <div className="flex items-center justify-center space-x-2 text-gray-600">
-                                        <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
-                                        <span>Loading friends...</span>
-                                    </div>
-                                )}
-
-
-
-                            </div>
                         </div>
 
 
@@ -459,75 +485,116 @@ const Home = ({ token, setToken }) => {
                                     {/* Messages Container */}
                                     <div className="bg-gradient-to-b from-gray-50 to-gray-100 rounded-xl ps-3 pe-3 p-1 h-[calc(100vh-15rem)] md:h-[calc(80vh-8rem)] overflow-y-auto shadow-inner">
                                         {/* Messages */}
-                                        {Array.isArray(messages) && messages.length > 0 ? (
-                                            Object.entries(
-                                                messages.reduce((acc, msg) => {
-                                                    const dateKey = new Date(msg.timestamp).toLocaleDateString();
-                                                    if (!acc[dateKey]) acc[dateKey] = [];
-                                                    acc[dateKey].push(msg);
-                                                    return acc;
-                                                }, {})
-                                            ).map(([date, messages]) => (
-                                                <div key={date} className="mb-1 md:mb-4">
-                                                    {/* Date Separator */}
-                                                    <div className="text-center text-gray-500 font-medium text-sm mb-2">
-                                                        {date}
-                                                    </div>
+                                        {Array.isArray(messages) && messages.length > 0 ?
+                                            (
+                                                Object.entries(
+                                                    messages.reduce((acc, msg) => {
+                                                        const dateKey = new Date(msg.timestamp).toLocaleDateString();
+                                                        if (!acc[dateKey]) acc[dateKey] = [];
+                                                        acc[dateKey].push(msg);
+                                                        return acc;
+                                                    }, {})
+                                                )
 
-                                                    {/* Messages */}
-                                                    {messages.map((msg, idx) => (
-                                                        <div
-                                                            key={idx}
-                                                            className={`relative group ${selectedMessages.includes(msg._id) ? "bg-blue-50 rounded-lg" : ""
-                                                                }`}
-                                                            onClick={() => handleMessageClick(msg)}
-                                                            onContextMenu={(e) => handleContextMenu(e, msg)}
-                                                        >
-                                                            <div
-                                                                className={`max-w-[75%] md:max-w-[55%] mt-2 shadow p-3 rounded-2xl break-words ${msg.sender === currentUserId
-                                                                    ? "ml-auto bg-purple-600 text-white"
-                                                                    : "mr-auto bg-white text-gray-800"
-                                                                    }`}
-                                                            >
-                                                                {selectedMessages.includes(msg._id) && (
-                                                                    <div
-                                                                        className="absolute top-2 right-2 cursor-pointer"
-                                                                        onClick={() => {
-                                                                            handleDeleteMessages();
-                                                                            setSelectedMessages(selectedMessages.filter(id => id !== msg._id));
-                                                                        }}
-                                                                    >
-                                                                        <RxCross2 size={20} className="text-gray-600 hover:text-gray-800" />
-                                                                    </div>
-                                                                )}
-                                                                <div className="text-sm md:text-base">{msg.content}</div>
-                                                                <div
-                                                                    className={`text-xs mt-1 ${msg.sender === currentUserId ? "text-purple-200" : "text-gray-500"
-                                                                        }`}
-                                                                >
-                                                                    {msg.timestamp ? new Intl.DateTimeFormat('en-US', {
-                                                                        hour: '2-digit',
-                                                                        minute: '2-digit',
-                                                                        hour12: true
-                                                                    }).format(new Date(msg.timestamp)) : 'Invalid Time'}
-                                                                </div>
-                                                            </div>
+
+
+
+
+
+
+
+
+                                                
+                                                .map(([date, messages]) => (
+                                                    <div key={date} className="mb-1 md:mb-4">
+                                                        <div className="text-center text-gray-500 font-medium text-sm mb-2">
+                                                            {date}
                                                         </div>
-                                                    ))}
+                                                        {messages.map((msg, idx) => (
+    <div
+        key={idx}
+        className={`relative group ${selectedMessages.includes(msg?._id) ? "bg-blue-50 rounded-lg" : ""}`}
+        onClick={() => handleMessageClick(msg)}
+        onContextMenu={(e) => handleContextMenu(e, msg)}
+    >
+        <div
+            className={`max-w-[55%] md:max-w-[55%] mt-2 shadow p-3 rounded-2xl break-words
+            ${msg?.sender?._id === currentUserId ? "ml-auto bg-purple-600 text-white" : "mr-auto bg-white text-gray-800"}`}
+        >
+            {selectedMessages.includes(msg?._id) && (
+                <div className="absolute top-2 right-2 cursor-pointer" onClick={() => {
+                    handleDeleteMessages();
+                    setSelectedMessages(selectedMessages.filter(id => id !== msg?._id));
+                }}>
+                    <RxCross2 size={20} className="text-gray-600 hover:text-gray-800" />
+                </div>
+            )}
+
+            {/* Add Edit Button for Current User's Messages */}
+            {msg?.sender?._id === currentUserId && (
+                <div className="absolute top-2 left-2 cursor-pointer" onClick={() => handleEditClick(msg)}>
+                    <MdModeEdit  size={20} className="text-gray-200 hover:text-white" />
+                </div>
+            )}
+
+            <div className="text-sm md:text-base">{msg?.content}</div>
+
+            <div
+                className={`text-xs flex justify-end mt-1 ${msg?.sender?._id === currentUserId ? "text-purple-200" : "text-gray-500"}`}
+            >
+                {msg?.timestamp ? new Intl.DateTimeFormat('en-US', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: true
+                }).format(new Date(msg.timestamp)) : 'Invalid Time'}
+            </div>
+        </div>
+    </div>
+))}
+
+{editingMessage && (
+    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+        <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+            <h2 className="text-lg font-semibold mb-4">Edit Message</h2>
+            <textarea
+                className="w-full p-2 border rounded-lg mb-4"
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+            />
+            <div className="flex justify-end">
+                <button
+                    className="px-4 py-2 bg-gray-300 rounded-lg mr-2"
+                    onClick={handleCancelEdit}
+                >
+                    Cancel
+                </button>
+                <button
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg"
+                    onClick={handleSaveEdit}
+                >
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+)}
+                                                    </div>
+                                                ))
+
+
+                                            )
+                                            : (
+                                                <div className="flex flex-col items-center justify-center h-full">
+                                                    <span className="text-3xl md:text-5xl text-gray-500 font-bold mb-4">
+                                                        Conversation Empty 🤷
+                                                    </span>
+                                                    <img
+                                                        src={Empty_message}
+                                                        alt="Empty Conversation"
+                                                        className="w-48 h-48 md:w-64 md:h-64 mt-4"
+                                                    />
                                                 </div>
-                                            ))
-                                        ) : (
-                                            <div className="flex flex-col items-center justify-center h-full">
-                                                <span className="text-3xl md:text-5xl text-gray-500 font-bold mb-4">
-                                                    Conversation Empty 🤷
-                                                </span>
-                                                <img
-                                                    src={Empty_message}
-                                                    alt="Empty Conversation"
-                                                    className="w-48 h-48 md:w-64 md:h-64 mt-4"
-                                                />
-                                            </div>
-                                        )}
+                                            )}
                                     </div>
                                 </div>
                             ) : (
@@ -568,7 +635,7 @@ const Home = ({ token, setToken }) => {
                     )}
 
 
-                        {/* Message Input */}
+                    {/* Message Input */}
                     <textarea
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
