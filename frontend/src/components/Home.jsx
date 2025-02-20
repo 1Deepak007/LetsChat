@@ -41,18 +41,6 @@ const Home = ({ token, setToken }) => {
 
     useEffect(() => {
         const fetchData = async () => {
-            await fetchMessages(_id, currentUserId);
-        };
-
-        setSelectedFrndId(_id);
-
-        if (_id) {
-            fetchData();
-        }
-    }, [_id, currentUserId]);
-
-    useEffect(() => {
-        const fetchData = async () => {
             if (selectedFrndId) {
                 await fetchMessages(currentUserId, selectedFrndId);
             } else if (_id) {
@@ -85,36 +73,7 @@ const Home = ({ token, setToken }) => {
         }
     }, [selectedFrndId, currentUserId, _id]);
 
-    // Initialize Socket Connection
-    useEffect(() => {
-        if (!token) return;
 
-        const newSocket = io("http://localhost:5000", {
-            transports: ["websocket", "polling"],
-            withCredentials: true,
-            auth: { token },
-        });
-
-        setSocket(newSocket);
-
-        newSocket.on("connect", () => {
-            console.log("Connected to socket.io server");
-        });
-
-        newSocket.on("newMessage", (newMessage) => {
-            if (
-                (newMessage.sender._id === selectedFrndId && newMessage.receiver._id === currentUserId) ||
-                (newMessage.sender._id === currentUserId && newMessage.receiver._id === selectedFrndId)
-            ) {
-                setMessages((prev) => [...prev, newMessage]);
-            }
-        });
-
-        return () => {
-            newSocket.off("newMessage");
-            newSocket.disconnect();
-        };
-    }, [token, selectedFrndId, currentUserId]);
 
     // Handle clicks outside the emoji picker
     useEffect(() => {
@@ -200,7 +159,7 @@ const Home = ({ token, setToken }) => {
 
     const sendMessage = async () => {
         if (!message.trim() || !selectedFrndId) return;
-    
+
         const newMessage = {
             sender: currentUserId,
             receiver: selectedFrndId,
@@ -208,7 +167,7 @@ const Home = ({ token, setToken }) => {
             messageType: "text",
             timestamp: new Date().toISOString(), // Add a timestamp
         };
-    
+
         try {
             const response = await axios.post(
                 "http://localhost:5000/api/chat/sendmessage",
@@ -216,13 +175,13 @@ const Home = ({ token, setToken }) => {
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             const sentMessage = response.data;
-    
+
             // Validate the response
-            if (!sentMessage.timestamp || !sentMessage.content || !sentMessage.sender) {
-                console.error("Invalid message response:", sentMessage);
-                return;
-            }
-    
+            // if (!sentMessage.timestamp || !sentMessage.content || !sentMessage.sender) {
+            //     console.error("Invalid message response:", sentMessage);
+            //     return;
+            // }
+
             // Update the messages state
             setMessages((prev) => {
                 const isDuplicate = prev.some((msg) => msg._id === sentMessage._id);
@@ -231,9 +190,9 @@ const Home = ({ token, setToken }) => {
                 }
                 return prev;
             });
-    
+
             setMessage("");
-    
+
             if (socket) {
                 socket.emit("send_message", sentMessage);
             }
@@ -258,12 +217,12 @@ const Home = ({ token, setToken }) => {
             });
 
             await Promise.all(deletePromises);
-            setMessages(messages.filter((msg) => !selectedMessages.includes(msg._id)));
+            setMessages(prevMessages => prevMessages.filter(msg => !selectedMessages.includes(msg._id))); // Use prevMessages
             setSelectedMessages([]);
 
             if (socket) {
-                selectedMessages.forEach((messageId) => {
-                    socket.emit("messageDeleted", messageId);
+                selectedMessages.forEach(messageId => {
+                    socket.emit("messageDeleted", messageId); // Emit only messageId
                 });
             }
         } catch (error) {
@@ -319,6 +278,8 @@ const Home = ({ token, setToken }) => {
             // Handle error (e.g., display error message to the user)
             setError(error.response?.data?.message || "An error occurred while editing the message.");
         }
+
+        await fetchMessages(_id, currentUserId);
     };
 
     const handleCancelEdit = () => {
@@ -348,6 +309,65 @@ const Home = ({ token, setToken }) => {
         setMessage((prevMessage) => prevMessage + emojiObject.emoji);
     };
 
+    // Initialize Socket Connection
+    useEffect(() => {
+        if (!token) return;
+
+        const newSocket = io("http://localhost:5000", {
+            transports: ["websocket", "polling"],
+            withCredentials: true,
+            auth: { token },
+        });
+
+        setSocket(newSocket);
+
+        const handleNewMessage = (newMessage) => {
+            if (
+                (newMessage.sender._id === selectedFrndId && newMessage.receiver._id === currentUserId) ||
+                (newMessage.sender._id === currentUserId && newMessage.receiver._id === selectedFrndId)
+            ) {
+                setMessages((prev) => [...prev, newMessage]);
+            }
+        };
+
+        const handleMessageDeleted = (deletedMessageId) => {
+            setMessages((prevMessages) => prevMessages.filter((msg) => msg._id !== deletedMessageId));
+        };
+
+        const handleMessageEdited = (updatedMessage) => {
+            setMessages((prevMessages) =>
+                prevMessages.map((msg) => (msg._id === updatedMessage._id ? updatedMessage : msg))
+            );
+        };
+
+        newSocket.on("connect", () => {
+            console.log("Connected to socket.io server");
+        });
+
+        newSocket.on("newMessage", handleNewMessage);
+        newSocket.on("messageDeleted", handleMessageDeleted);
+        newSocket.on("messageEdited", handleMessageEdited);
+
+        // Cleanup on unmount
+        return () => {
+            newSocket.off("newMessage", handleNewMessage);
+            newSocket.off("messageDeleted", handleMessageDeleted);
+            newSocket.off("messageEdited", handleMessageEdited);
+            newSocket.disconnect();
+        };
+    }, [token, selectedFrndId, currentUserId]);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            if (selectedFrndId) {
+                await fetchMessages(currentUserId, selectedFrndId);
+            } else if (_id) {
+                await fetchMessages(currentUserId, _id);
+            }
+        };
+
+        fetchData();
+    }, [selectedFrndId, _id, currentUserId]);
 
     // console.log("current user id : ", currentUserId);
     // console.log("current user : ", currentUser);
@@ -500,89 +520,100 @@ const Home = ({ token, setToken }) => {
                                     <div className="bg-gradient-to-b from-gray-50 to-gray-100 rounded-xl ps-3 pe-3 p-1 h-[calc(100vh-15rem)] md:h-[calc(80vh-8rem)] overflow-y-auto shadow-inner">
                                         {/* Messages */}
                                         {Array.isArray(messages) && messages.length > 0 ?
-                                            (
+                                            
                                                 Object.entries(
                                                     messages.reduce((acc, msg) => {
-                                                        const dateKey = new Date(msg.timestamp).toLocaleDateString();
-                                                        if (!acc[dateKey]) acc[dateKey] = [];
-                                                        acc[dateKey].push(msg);
+                                                        // Check if the timestamp is valid
+                                                        if (msg.timestamp && !isNaN(new Date(msg.timestamp).getTime())) {
+                                                            const dateKey = new Date(msg.timestamp).toLocaleDateString();
+                                                            if (!acc[dateKey]) acc[dateKey] = [];
+                                                            acc[dateKey].push(msg);
+                                                        }
                                                         return acc;
                                                     }, {})
                                                 )
-                                                .map(([date, messages]) => (
-                                                    <div key={date} className="mb-1 md:mb-4">
-                                                        <div className="text-center text-gray-500 font-medium text-sm mb-2">
-                                                            {date}
+                                                .map(([date, messages]) => {
+                                                    // Skip rendering if the date is invalid
+                                                    if (!date || isNaN(new Date(date).getTime())) return null;
+                                            
+                                                    return (
+                                                        <div key={date} className="mb-1 md:mb-4">
+                                                            <div className="text-center text-gray-500 font-medium text-sm mb-2">
+                                                                {date}
+                                                            </div>
+                                                            {messages
+                                                                .filter(msg => msg?.content?.trim()) // Ensure the message has content
+                                                                .map((msg, idx) => (
+                                                                    <div
+                                                                        key={idx}
+                                                                        className={`relative group ${selectedMessages.includes(msg?._id) ? "bg-blue-50 rounded-lg" : ""}`}
+                                                                        onClick={() => handleMessageClick(msg)}
+                                                                        onContextMenu={(e) => handleContextMenu(e, msg)}
+                                                                    >
+                                                                        <div
+                                                                            className={`max-w-[55%] md:max-w-[55%] mt-2 shadow p-3 rounded-2xl break-words ${msg?.sender?._id === currentUserId ? "ml-auto bg-purple-600 text-white" : "mr-auto bg-white text-gray-800"}`}
+                                                                        >
+                                                                            {selectedMessages.includes(msg?._id) && (
+                                                                                <div className="absolute top-2 right-2 cursor-pointer" onClick={() => {
+                                                                                    handleDeleteMessages();
+                                                                                    setSelectedMessages(selectedMessages.filter(id => id !== msg?._id));
+                                                                                }}>
+                                                                                    <RxCross2 size={20} className="text-gray-600 hover:text-gray-800" />
+                                                                                </div>
+                                                                            )}
+                                            
+                                                                            {msg?.sender?._id === currentUserId && (
+                                                                                <div className="absolute top-2 left-2 cursor-pointer" onClick={() => handleEditClick(msg)}>
+                                                                                    <MdModeEdit size={20} className="text-gray-200 hover:text-white" />
+                                                                                </div>
+                                                                            )}
+                                            
+                                                                            <div className="text-sm md:text-base">{msg?.content}</div>
+                                            
+                                                                            <div className={`text-xs flex justify-end mt-1 ${msg?.sender?._id === currentUserId ? "text-purple-200" : "text-gray-500"}`}>
+                                                                                {msg?.timestamp && !isNaN(new Date(msg.timestamp).getTime())
+                                                                                    ? new Intl.DateTimeFormat('en-US', {
+                                                                                        hour: '2-digit',
+                                                                                        minute: '2-digit',
+                                                                                        hour12: true
+                                                                                    }).format(new Date(msg.timestamp))
+                                                                                    : null} {/* Render nothing if the timestamp is invalid */}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                ))
+                                                            }
+                                            
+                                                            {editingMessage && (
+                                                                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                                                                    <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+                                                                        <h2 className="text-lg font-semibold mb-4">Edit Message</h2>
+                                                                        <textarea
+                                                                            className="w-full p-2 border rounded-lg mb-4"
+                                                                            value={editContent}
+                                                                            onChange={(e) => setEditContent(e.target.value)}
+                                                                        />
+                                                                        <div className="flex justify-end">
+                                                                            <button
+                                                                                className="px-4 py-2 bg-gray-300 rounded-lg mr-2"
+                                                                                onClick={handleCancelEdit}
+                                                                            >
+                                                                                Cancel
+                                                                            </button>
+                                                                            <button
+                                                                                className="px-4 py-2 bg-purple-600 text-white rounded-lg"
+                                                                                onClick={handleSaveEdit}
+                                                                            >
+                                                                                Save
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                        {messages.map((msg, idx) => (
-                                                            <div
-                                                                key={idx}
-                                                                className={`relative group ${selectedMessages.includes(msg?._id) ? "bg-blue-50 rounded-lg" : ""}`}
-                                                                onClick={() => handleMessageClick(msg)}
-                                                                onContextMenu={(e) => handleContextMenu(e, msg)}
-                                                            >
-                                                                <div
-                                                                    className={`max-w-[55%] md:max-w-[55%] mt-2 shadow p-3 rounded-2xl break-words ${msg?.sender?._id === currentUserId ? "ml-auto bg-purple-600 text-white" : "mr-auto bg-white text-gray-800"}`}
-                                                                >
-                                                                    {selectedMessages.includes(msg?._id) && (
-                                                                        <div className="absolute top-2 right-2 cursor-pointer" onClick={() => {
-                                                                            handleDeleteMessages();
-                                                                            setSelectedMessages(selectedMessages.filter(id => id !== msg?._id));
-                                                                        }}>
-                                                                            <RxCross2 size={20} className="text-gray-600 hover:text-gray-800" />
-                                                                        </div>
-                                                                    )}
-
-                                                                    {msg?.sender?._id === currentUserId && (
-                                                                        <div className="absolute top-2 left-2 cursor-pointer" onClick={() => handleEditClick(msg)}>
-                                                                            <MdModeEdit size={20} className="text-gray-200 hover:text-white" />
-                                                                        </div>
-                                                                    )}
-
-                                                                    <div className="text-sm md:text-base">{msg?.content}</div>
-
-                                                                    <div className={`text-xs flex justify-end mt-1 ${msg?.sender?._id === currentUserId ? "text-purple-200" : "text-gray-500"}`}>
-                                                                        {msg?.timestamp ? new Intl.DateTimeFormat('en-US', {
-                                                                            hour: '2-digit',
-                                                                            minute: '2-digit',
-                                                                            hour12: true
-                                                                        }).format(new Date(msg.timestamp)) : 'Invalid Time'}
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-
-                                                        {editingMessage && (
-                                                            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-                                                                <div className="bg-white p-6 rounded-lg shadow-lg w-96">
-                                                                    <h2 className="text-lg font-semibold mb-4">Edit Message</h2>
-                                                                    <textarea
-                                                                        className="w-full p-2 border rounded-lg mb-4"
-                                                                        value={editContent}
-                                                                        onChange={(e) => setEditContent(e.target.value)}
-                                                                    />
-                                                                    <div className="flex justify-end">
-                                                                        <button
-                                                                            className="px-4 py-2 bg-gray-300 rounded-lg mr-2"
-                                                                            onClick={handleCancelEdit}
-                                                                        >
-                                                                            Cancel
-                                                                        </button>
-                                                                        <button
-                                                                            className="px-4 py-2 bg-purple-600 text-white rounded-lg"
-                                                                            onClick={handleSaveEdit}
-                                                                        >
-                                                                            Save
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ))
-
-
-                                            )
+                                                    );
+                                                })
+                                            
                                             : (
                                                 <div className="flex flex-col items-center justify-center h-full">
                                                     <span className="text-3xl md:text-5xl text-gray-500 font-bold mb-4">

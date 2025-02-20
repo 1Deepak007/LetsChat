@@ -176,6 +176,7 @@ module.exports = (io) => {
 
     try {
       const message = await Message.findById(messageId);
+
       if (!message) {
         return res.status(404).json({ message: "Message not found" });
       }
@@ -192,20 +193,16 @@ module.exports = (io) => {
       message.isDeleted = true;
       await message.save();
 
-      // *** POPULATE THE MESSAGE BEFORE EMITTING AND SENDING RESPONSE ***
       const populatedMessage = await Message.findById(messageId)
         .populate("sender", "username firstname lastname profilePicture _id")
         .populate("receiver", "username firstname lastname profilePicture _id");
 
       io.to(message.sender.toString()).emit("messageDeleted", populatedMessage);
-      io.to(message.receiver.toString()).emit(
-        "messageDeleted",
-        populatedMessage
-      );
+      io.to(message.receiver.toString()).emit("messageDeleted", populatedMessage);
 
       res
         .status(200)
-        .json({ message: "Message deleted", data: populatedMessage }); // Send populated message
+        .json({ message: "Message deleted", data: populatedMessage });
     } catch (err) {
       console.error("Error in deleteMessage:", err);
       res.status(500).json({ message: `Server error: ${err.message}` });
